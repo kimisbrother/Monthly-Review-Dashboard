@@ -12,64 +12,102 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
-    --bg:#F5F6FA; --surface:#FFFFFF; --surface-2:#FAFBFD; --border:#E3E6EE;
-    --text:#191B26; --text-dim:#6B7280; --text-faint:#9CA3AF;
-    --primary:#0F1E3D; --primary-dim:#1C2F58; --primary-tint:#EBEEF4;
+    --bg:#F6F4EC; --surface:#FFFFFF; --surface-2:#FBF9F2; --border:#E6E1D1;
+    --text:#1B2019; --text-dim:#5F6B62; --text-faint:#93998A;
+    --ap-green-900:#0B2A21; --ap-green-700:#154A38; --ap-green-500:#1F7A54;
+    --ap-gold:#C7A25C; --ap-gold-light:#EAD9AF;
+    --primary:var(--ap-green-900); --primary-dim:var(--ap-green-700); --primary-tint:#E7EFE9;
     --teal:#0C8C7D; --teal-tint:#E6F5F3; --amber:#C2760C; --amber-tint:#FBF0DF;
-    --red:#C93C3C; --red-tint:#FBEAEA;
-    --radius:12px; --radius-sm:8px;
-    --shadow:0 1px 2px rgba(20,22,40,0.04), 0 4px 16px rgba(20,22,40,0.04);
+    --red:#C0392B; --red-tint:#FBEAEA;
+    --good:#1F9D6B; --good-tint:#E4F6EE; --bad:#D64545; --bad-tint:#FCEBEA;
+    --radius:16px; --radius-sm:10px;
+    --shadow:0 1px 2px rgba(11,42,33,0.05), 0 14px 30px rgba(11,42,33,0.09);
     --font-sans:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono:'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
-  body{background:var(--bg); color:var(--text); font-family:var(--font-sans); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+  body{
+    background:
+      radial-gradient(1100px 480px at 50% -220px, rgba(31,122,84,0.10), transparent 60%),
+      var(--bg);
+    color:var(--text); font-family:var(--font-sans); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
   button{font-family:inherit; cursor:pointer;}
   input,select,textarea{font-family:var(--font-sans);}
-  body::before{content:''; display:block; height:3px; width:100%; background:linear-gradient(90deg, var(--primary) 0%, var(--primary) 60%, #7C8AAE 100%); position:sticky; top:0; z-index:50;}
+  body::before{content:''; display:block; height:3px; width:100%; background:linear-gradient(90deg, var(--ap-gold) 0%, var(--ap-green-700) 55%, var(--ap-gold-light) 100%); position:sticky; top:0; z-index:50;}
+  body.view-mode [contenteditable]{cursor:default;}
+  body.view-mode .editor-toolbar{display:none !important;}
+  body.view-mode .img-slot{cursor:default;}
+  body.view-mode .img-slot .remove-btn, body.view-mode .img-slot .placeholder{display:none !important;}
+  body.view-mode [data-cell]{cursor:default;}
+  body.view-mode .inf-card{cursor:default;}
+  body.view-mode .inf-card:hover{transform:none; box-shadow:none;}
 
-  .topbar{position:sticky; top:3px; z-index:40; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 22px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; box-shadow:0 1px 0 rgba(15,30,61,0.03);}
-  .topbar-title h1{font-size:15px; font-weight:700; margin:0; letter-spacing:0.03em; color:var(--primary);}
-  .topbar-title .sub{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono);}
+  .topbar{
+    position:sticky; top:3px; z-index:40;
+    background:
+      radial-gradient(600px 220px at 85% -60%, rgba(199,162,92,0.20), transparent 60%),
+      linear-gradient(135deg, var(--ap-green-900) 0%, #123324 55%, var(--ap-green-700) 100%);
+    padding:28px 30px 24px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    box-shadow:0 10px 26px rgba(11,42,33,0.28);
+  }
+  .topbar-title h1{font-size:29px; font-weight:800; margin:0; letter-spacing:-0.01em; color:#FBF7EC;}
+  .topbar-title h1::after{content:''; display:block; width:48px; height:3px; margin-top:11px; border-radius:2px; background:linear-gradient(90deg,var(--ap-gold),var(--ap-gold-light));}
+  .topbar-title .sub{font-size:13px; font-weight:600; color:var(--ap-gold-light); font-family:var(--font-mono); letter-spacing:0.02em; margin-top:10px;}
   .topbar-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .gear-btn{
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,0.28);
+    background:rgba(255,255,255,0.08); color:#FBF7EC; font-size:16px; line-height:1;
+    display:flex; align-items:center; justify-content:center; padding:0;
+    box-shadow:0 2px 8px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.12) inset;
+    transition:transform .18s ease, background .18s ease;
+  }
+  .gear-btn:hover{background:rgba(255,255,255,0.18); transform:rotate(35deg);}
   .btn{
-    display:inline-flex; align-items:center; gap:6px; border-radius:9px; border:1px solid var(--border);
-    padding:7px 13px; font-size:12.5px; font-weight:600; color:var(--text);
-    background:linear-gradient(180deg, #ffffff 0%, #F7F8FB 100%);
-    box-shadow:0 1px 2px rgba(15,30,61,0.06), 0 1px 0 rgba(255,255,255,0.6) inset;
+    display:inline-flex; align-items:center; gap:6px; border-radius:10px; border:1px solid var(--border);
+    padding:8px 14px; font-size:12.5px; font-weight:600; color:var(--text);
+    background:linear-gradient(180deg, #ffffff 0%, #F8F6EE 100%);
+    box-shadow:0 1px 2px rgba(11,42,33,0.06), 0 6px 14px rgba(11,42,33,0.05), 0 1px 0 rgba(255,255,255,0.6) inset;
     transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
   }
-  .btn:hover{transform:translateY(-1px); box-shadow:0 4px 10px rgba(15,30,61,0.10), 0 1px 0 rgba(255,255,255,0.6) inset; border-color:#D3D7E2;}
-  .btn:active{transform:translateY(0); box-shadow:0 1px 1px rgba(15,30,61,0.08) inset;}
+  .btn:hover{transform:translateY(-1px); box-shadow:0 6px 16px rgba(11,42,33,0.12), 0 1px 0 rgba(255,255,255,0.6) inset; border-color:#D8D0B8;}
+  .btn:active{transform:translateY(0); box-shadow:0 1px 1px rgba(11,42,33,0.1) inset;}
   .btn-primary{
-    background:linear-gradient(180deg, #1C2F58 0%, #0F1E3D 100%); border-color:#0A1730; color:#fff;
-    box-shadow:0 2px 6px rgba(15,30,61,0.35), 0 1px 0 rgba(255,255,255,0.15) inset;
+    background:linear-gradient(180deg, var(--ap-green-700) 0%, var(--ap-green-900) 100%); border-color:#081F17; color:#fff;
+    box-shadow:0 3px 10px rgba(11,42,33,0.4), 0 1px 0 rgba(255,255,255,0.15) inset;
   }
-  .btn-primary:hover{background:linear-gradient(180deg, #24365F 0%, #142547 100%); box-shadow:0 6px 14px rgba(15,30,61,0.4), 0 1px 0 rgba(255,255,255,0.15) inset;}
+  .btn-primary:hover{background:linear-gradient(180deg, #1C5A44 0%, #0E3527 100%); box-shadow:0 8px 18px rgba(11,42,33,0.45), 0 1px 0 rgba(255,255,255,0.15) inset;}
   .btn:disabled{opacity:.5; cursor:not-allowed; transform:none;}
   .spin{display:inline-block; animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
   .banner{padding:9px 22px; font-size:13px; display:none; align-items:center; gap:8px; border-bottom:1px solid var(--border);}
   .banner.show{display:flex;}
-  .banner.error{background:var(--red-tint); color:#8f2323;}
-  .banner.ok{background:var(--teal-tint); color:#0a5a4f;}
+  .banner.error{background:var(--bad-tint); color:#8f2323;}
+  .banner.ok{background:var(--good-tint); color:#0a5a3f;}
 
-  .tabs{display:flex; gap:4px; padding:8px 22px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto;}
-  .tab-btn{border:none; background:transparent; padding:9px 16px; font-size:13px; font-weight:600; color:var(--text-faint); white-space:nowrap; border-radius:8px; transition:all .15s ease;}
+  .tabs{display:flex; gap:4px; padding:10px 22px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto;}
+  .tab-btn{border:none; background:transparent; padding:9px 16px; font-size:13px; font-weight:600; color:var(--text-faint); white-space:nowrap; border-radius:9px; transition:all .15s ease;}
   .tab-btn:hover{background:var(--surface-2); color:var(--text);}
-  .tab-btn.active{color:#fff; background:linear-gradient(180deg, #1C2F58 0%, #0F1E3D 100%); box-shadow:0 2px 6px rgba(15,30,61,0.3);}
+  .tab-btn.active{color:#fff; background:linear-gradient(180deg, var(--ap-green-700) 0%, var(--ap-green-900) 100%); box-shadow:0 4px 12px rgba(11,42,33,0.3);}
   .tab-panel{display:none; padding:22px; max-width:1400px; margin:0 auto;}
   .tab-panel.active{display:block;}
 
-  .card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:18px; box-shadow:0 1px 3px rgba(15,30,61,0.05), 0 8px 20px rgba(15,30,61,0.04); border-top:2px solid var(--primary-tint);}
+  .card{position:relative; overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 18px 18px; margin-bottom:20px; box-shadow:var(--shadow);}
+  .card::before{content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg, var(--ap-green-700), var(--ap-gold));}
   .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;}
-  .card-head h2{font-size:14px; font-weight:700; margin:0; outline:none; letter-spacing:0.01em;}
+  .card-head h2{font-size:14.5px; font-weight:700; margin:0; outline:none; letter-spacing:0.01em;}
   .card-head h2[contenteditable]:hover{background:var(--surface-2); border-radius:4px; padding:2px 4px; margin:-2px -4px;}
   .card-head .hint{font-size:11px; color:var(--text-faint);}
   .section-mark{display:inline-block; width:3px; height:13px; background:var(--primary); margin-right:6px; vertical-align:-2px; border-radius:2px;}
   .stat-line{font-size:13px; font-weight:600; color:var(--text); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;}
+
+  .delta-pill{display:inline-flex; align-items:center; gap:4px; font-weight:700;}
+  .delta-pill .delta-tri{font-size:9px; line-height:1;}
+  .delta-pill.delta-good{color:var(--good);}
+  .delta-pill.delta-bad{color:var(--bad);}
+  .delta-pill.delta-flat{color:var(--text-faint);}
 
   .editor-toolbar{display:none; gap:4px; margin-bottom:8px;}
   .comment-wrap:focus-within .editor-toolbar{display:flex;}
@@ -109,7 +147,6 @@
   .img-slot:hover .remove-btn{display:block;}
   .img-slot input[type=file]{display:none;}
   .inf-name{padding:6px 8px 2px;}
-  .inf-name input{width:100%; border:1px solid var(--border); border-radius:6px; padding:4px 6px; font-size:11.5px;}
   .inf-name .readonly-name{font-size:11.5px; font-weight:700; padding:2px 0;}
 
   .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
@@ -149,14 +186,10 @@
 <div class="topbar">
   <div class="topbar-title">
     <h1>월간 리뷰 대시보드</h1>
-    <div class="sub" id="statusLabel">불러오는 중...</div>
+    <div class="sub" id="dateRangeLabel">불러오는 중...</div>
   </div>
   <div class="topbar-controls">
-    <button class="btn" id="reloadStateBtn">↻ 불러오기</button>
-    <button class="btn" id="pdfBtn">📄 PDF</button>
-    <button class="btn" id="settingsBtn">⚙️ 설정</button>
-    <button class="btn" id="syncBtn">⟲ Sync</button>
-    <button class="btn btn-primary" id="saveBtn">☁️ 저장</button>
+    <button class="gear-btn" id="settingsBtn" title="설정" aria-label="설정">⚙</button>
   </div>
 </div>
 
@@ -173,6 +206,18 @@
   <div class="modal">
     <div class="modal-head"><h3>설정</h3><button class="btn" id="modalClose" style="padding:4px 8px;">✕</button></div>
     <div class="modal-body">
+
+      <div class="settings-section">
+        <div class="ss-title">데이터 관리</div>
+        <div class="status-line show" id="syncStatusLine" style="margin-top:0;">불러오는 중...</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <button class="btn" id="reloadStateBtn">↻ 공유 상태 불러오기</button>
+          <button class="btn" id="syncBtn">⟲ 데이터 Sync</button>
+          <button class="btn" id="pdfBtn">📄 PDF 내보내기</button>
+          <button class="btn btn-primary" id="saveBtn">☁️ 저장</button>
+        </div>
+        <div class="desc" style="margin-top:10px;">광고주 등에게 <b>보기 전용</b>으로 공유하려면 이 페이지 주소 끝에 <code>?viewer=1</code>을 붙인 링크를 전달하세요. 해당 링크에서는 이 설정 화면과 모든 편집 기능이 보이지 않아요. (다만 소스 보기로 우회는 가능하니 완전한 보안 수단은 아니에요.)</div>
+      </div>
 
       <div class="settings-section">
         <div class="ss-title">데이터 연결</div>
@@ -196,7 +241,7 @@
         </div>
         <div class="field">
           <label>제외할 캠페인</label>
-          <div class="desc">선택한 기간 기준 7일 이상 데이터가 집계된 캠페인만 표시돼요.</div>
+          <div class="desc">기간을 지정하면 그 기간 기준 7일 이상 집행된 캠페인만 자동으로 집계에 포함되고, 나머지는 자동 제외돼요. 아래에서 그중 일부를 추가로 체크해 제외할 수 있어요.</div>
           <div class="excl-checklist" id="excludeCampaignList"></div>
         </div>
         <div class="field">
@@ -238,6 +283,15 @@ function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
 let CONFIG = loadJSON(LS.config, { csvUrl: DEFAULT_CSV_URL, appsScriptUrl: APPS_SCRIPT_URL, fieldMap:{} });
 if(!CONFIG.appsScriptUrl && APPS_SCRIPT_URL) CONFIG.appsScriptUrl = APPS_SCRIPT_URL;
 
+/* 광고주 등에게 공유하는 보기 전용 링크: 주소 끝에 ?viewer=1 을 붙이면 편집/설정 UI가 모두 숨겨짐.
+   (프론트엔드 레벨의 소프트 게이트이며, 완전한 서버 보안은 아님) */
+const VIEW_MODE = new URLSearchParams(location.search).get('viewer') === '1';
+if(VIEW_MODE){
+  document.body.classList.add('view-mode');
+  const gearBtn = document.getElementById('settingsBtn');
+  if(gearBtn) gearBtn.style.display = 'none';
+}
+
 const REQUIRED_FIELDS = [
   {key:'date', label:'날짜 (Date)'}, {key:'brand', label:'브랜드 (Brand)'},
   {key:'country', label:'국가 (Country)'}, {key:'media', label:'매체 (Media)'},
@@ -251,7 +305,7 @@ const REQUIRED_FIELDS = [
 let RAWROWS = [], RAWHEADERS = [];
 let STATE = {
   dateRange:{start:'',end:''}, excludedCampaigns:[], excludedAdGroups:[], tableTitles:{}, comments:{}, highlights:{},
-  cardHighlights:{}, images:{}, nameOverrides:{},
+  cardHighlights:{}, images:{},
   targets:{ summary:{budget:0,impression:0,click:0,view:0}, country:{} },
   optDates:{}
 };
@@ -267,7 +321,6 @@ function ensureStateShape(){
   STATE.highlights = STATE.highlights || {};
   STATE.cardHighlights = STATE.cardHighlights || {};
   STATE.images = STATE.images || {};
-  STATE.nameOverrides = STATE.nameOverrides || {};
   STATE.targets = STATE.targets || {};
   STATE.targets.summary = STATE.targets.summary || {budget:0,impression:0,click:0,view:0};
   STATE.targets.country = STATE.targets.country || {};
@@ -297,7 +350,13 @@ function inRange(row, range){
 function baseRows(){
   const campCol = CONFIG.fieldMap.campaign;
   const agCol = CONFIG.fieldMap.adGroup;
-  return RAWROWS.filter(r => inRange(r, STATE.dateRange)
+  const range = STATE.dateRange;
+  const hasRange = !!(range && (range.start || range.end));
+  // 기간을 지정하면, 그 기간 기준으로 유효 집행(7일 이상) 캠페인 목록에 속한 캠페인만 집계에 포함하고
+  // 나머지(경계에 살짝 걸친 캠페인 등)는 자동으로 제외한다. 체크박스 제외는 이 목록 안에서 추가로 뺀다.
+  const eligibleCamps = (hasRange && campCol) ? new Set(eligibleForExclusion(campCol, range)) : null;
+  return RAWROWS.filter(r => inRange(r, range)
+    && (!eligibleCamps || eligibleCamps.has(String(r[campCol])))
     && !(campCol && STATE.excludedCampaigns.includes(String(r[campCol])))
     && !(agCol && STATE.excludedAdGroups.includes(String(r[agCol]))));
 }
@@ -443,6 +502,24 @@ function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
 /* ===========================================================
    표: 미디어믹스 대비 성과 비교 (미디어믹스 / 실집행 / 증감)
 =========================================================== */
+// 증감 배지: CPM/CPC/CPV는 내려가면 좋음(초록 ▼) / 올라가면 나쁨(빨강 ▲).
+// 광고비·노출·클릭·조회·CTR·VTR은 반대로 올라가면 좋음(초록 ▲) / 내려가면 나쁨(빨강 ▼).
+const LOWER_IS_BETTER = new Set(['cpm','cpc','cpv']);
+function deltaBadge(key, current, base){
+  const isPctPoint = (key==='ctr' || key==='vtr');
+  const diff = isPctPoint ? (current - base) : (base ? (current-base)/base : (current?1:0));
+  const dir = diff > 1e-9 ? 'up' : diff < -1e-9 ? 'down' : 'flat';
+  const goodWhenUp = !LOWER_IS_BETTER.has(key);
+  const isGood = dir==='flat' ? null : (dir==='up' ? goodWhenUp : !goodWhenUp);
+  const cls = isGood===null ? 'delta-flat' : (isGood ? 'delta-good' : 'delta-bad');
+  const arrow = dir==='up' ? '▲' : dir==='down' ? '▼' : '–';
+  const valueStr = isPctPoint ? `${Math.abs(diff*100).toFixed(2)}%p` : `${Math.abs(Math.round(diff*100))}%`;
+  return `<span class="delta-pill ${cls}"><span class="delta-tri">${arrow}</span>${valueStr}</span>`;
+}
+function buildDeltaRow(actual, base){
+  return ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>deltaBadge(k, actual[k], base[k]));
+}
+
 function buildMediaMixTable(rows, target){
   const t = target || {budget:0,impression:0,click:0,view:0};
   const tSpent = Number(t.budget)||0, tImp = Number(t.impression)||0, tClick = Number(t.click)||0, tView = Number(t.view)||0;
@@ -452,12 +529,7 @@ function buildMediaMixTable(rows, target){
     vtr:safeDiv(tView,tImp), cpv:safeDiv(tSpent,tView)
   };
   const actual = aggregate(rows);
-  const pct = (a,b)=> b ? (a-b)/b : (a?1:0);
-  const deltaRow = ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>{
-    if(k==='ctr'||k==='vtr'){ const d=(actual[k]-targetAgg[k]); return (d>=0?'+':'')+(d*100).toFixed(2)+'%p'; }
-    const d = pct(actual[k], targetAgg[k]);
-    return (d>=0?'+':'')+Math.round(d*100)+'%';
-  });
+  const deltaRow = buildDeltaRow(actual, targetAgg);
   if(!tSpent && !tImp && !tClick && !tView){
     return `<div class="empty-state">설정에서 미디어믹스(Target) 값을 입력하면 이 표가 채워져요.<br><br>` +
       `<table style="margin-top:8px;"><thead><tr><th>구분</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>` +
@@ -480,11 +552,7 @@ function buildBeforeAfterTable(rows, cutoffDate){
   const after = rows.filter(r=>{ const d=getDate(r); return d && d >= cutoff; });
   if(before.length===0 && after.length===0) return null;
   const a1 = aggregate(before), a2 = aggregate(after);
-  const pct = (a,b)=> b?(a-b)/b:(a?1:0);
-  const deltaRow = ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>{
-    if(k==='ctr'||k==='vtr'){ const d=(a2[k]-a1[k]); return (d>=0?'+':'')+(d*100).toFixed(2)+'%p'; }
-    const d = pct(a2[k],a1[k]); return (d>=0?'+':'')+Math.round(d*100)+'%';
-  });
+  const deltaRow = buildDeltaRow(a2, a1);
   return `<table><thead><tr><th>구분</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
     <tr><td>적용 전 (~${esc(cutoffDate)})</td>${koCells(a1).map(c=>`<td>${c}</td>`).join('')}</tr>
     <tr><td>적용 후 (${esc(cutoffDate)}~)</td>${koCells(a2).map(c=>`<td>${c}</td>`).join('')}</tr>
@@ -496,6 +564,7 @@ function buildBeforeAfterTable(rows, cutoffDate){
    표/카드: 클릭 강조 토글
 =========================================================== */
 document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
   const el = e.target.closest('[data-cell]');
   if(!el) return;
   const tableId = el.dataset.table, cell = el.dataset.cell;
@@ -507,6 +576,7 @@ document.addEventListener('click', e=>{
 });
 // 인플루언서 카드 테두리 강조 (이미지/이름입력/개별 지표 클릭은 제외)
 document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
   const card = e.target.closest('.inf-card');
   if(!card) return;
   if(e.target.closest('.img-slot') || e.target.closest('.inf-name') || e.target.closest('[data-cell]')) return;
@@ -520,6 +590,9 @@ document.addEventListener('click', e=>{
 =========================================================== */
 function buildCommentEditor(key, placeholder){
   const html = STATE.comments[key] || '';
+  if(VIEW_MODE){
+    return `<div class="comment-wrap"><div class="comment-box">${html || `<span style="color:var(--text-faint)">(코멘트 없음)</span>`}</div></div>`;
+  }
   return `
   <div class="comment-wrap">
     <div class="editor-toolbar">
@@ -533,18 +606,21 @@ function buildCommentEditor(key, placeholder){
   </div>`;
 }
 document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
   const btn = e.target.closest('.editor-toolbar button');
   if(!btn) return;
   const box = btn.closest('.card').querySelector('.comment-box');
   box.focus(); document.execCommand(btn.dataset.cmd,false,null);
 });
 document.addEventListener('change', e=>{
+  if(VIEW_MODE) return;
   const sel = e.target.closest('.editor-toolbar select[data-cmd="fontSize"]');
   if(!sel) return;
   const box = sel.closest('.card').querySelector('.comment-box');
   box.focus(); document.execCommand('fontSize', false, sel.value);
 });
 document.addEventListener('input', e=>{
+  if(VIEW_MODE) return;
   const box = e.target.closest('.comment-box[data-comment-key]');
   if(!box) return;
   STATE.comments[box.dataset.commentKey] = box.innerHTML;
@@ -555,9 +631,11 @@ document.addEventListener('input', e=>{
 =========================================================== */
 function titleFor(tableId, def){ return STATE.tableTitles[tableId] || def; }
 function editableTitle(tableId, def, hint){
-  return `<h2 contenteditable="true" data-title-key="${tableId}">${esc(titleFor(tableId,def))}</h2>${hint?`<span class="hint">${hint}</span>`:''}`;
+  const editableAttr = VIEW_MODE ? '' : ' contenteditable="true"';
+  return `<h2${editableAttr} data-title-key="${tableId}">${esc(titleFor(tableId,def))}</h2>${hint?`<span class="hint">${hint}</span>`:''}`;
 }
 document.addEventListener('blur', e=>{
+  if(VIEW_MODE) return;
   const h = e.target.closest && e.target.closest('h2[data-title-key]');
   if(!h) return;
   STATE.tableTitles[h.dataset.titleKey] = h.textContent.trim();
@@ -600,40 +678,39 @@ function buildImgSlot(slotKey){
   </div>`;
 }
 document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
   const slot = e.target.closest('.img-slot');
   if(!slot || e.target.closest('.remove-btn')) return;
   slot.querySelector('input[type=file]').click();
 });
 document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
   const rm = e.target.closest('[data-remove-slot]'); if(!rm) return;
   e.stopPropagation(); delete STATE.images[rm.dataset.removeSlot]; renderCurrentTab();
 });
 document.addEventListener('change', e=>{
+  if(VIEW_MODE) return;
   const input = e.target.closest('input[data-file-slot]');
   if(!input || !input.files[0]) return;
   setSlotImage(input.dataset.fileSlot, input.files[0]);
 });
-document.addEventListener('dragover', e=>{ const s=e.target.closest('.img-slot'); if(s){ e.preventDefault(); s.classList.add('dragover'); } });
-document.addEventListener('dragleave', e=>{ const s=e.target.closest('.img-slot'); if(s) s.classList.remove('dragover'); });
+document.addEventListener('dragover', e=>{ if(VIEW_MODE) return; const s=e.target.closest('.img-slot'); if(s){ e.preventDefault(); s.classList.add('dragover'); } });
+document.addEventListener('dragleave', e=>{ if(VIEW_MODE) return; const s=e.target.closest('.img-slot'); if(s) s.classList.remove('dragover'); });
 document.addEventListener('drop', e=>{
+  if(VIEW_MODE) return;
   const s = e.target.closest('.img-slot'); if(!s) return;
   e.preventDefault(); s.classList.remove('dragover');
   const file = e.dataTransfer.files[0];
   if(file && file.type.startsWith('image/')) setSlotImage(s.dataset.slot, file);
 });
 document.addEventListener('paste', e=>{
+  if(VIEW_MODE) return;
   const hovered = document.querySelector('.img-slot:hover');
   const items = e.clipboardData && e.clipboardData.items; if(!items || !hovered) return;
   for(const item of items){ if(item.type.startsWith('image/')){ const file=item.getAsFile(); if(file){ setSlotImage(hovered.dataset.slot, file); e.preventDefault(); } } }
 });
-document.addEventListener('input', e=>{
-  const inp = e.target.closest('input[data-name-override]');
-  if(!inp) return;
-  STATE.nameOverrides[inp.dataset.nameOverride] = inp.value;
-});
-
 function buildInfluencerGrid(rows, opts){
-  // opts: { groupCol, labelCol, editable }
+  // opts: { groupCol, labelCol, slotPrefix, numberFrom:{col, keyword, prefix} }
   const groupCol = opts.groupCol;
   if(!groupCol) return '<div class="empty-state">그룹 기준 컬럼 매핑이 필요해요.</div>';
   const groups = groupBy(rows, groupCol);
@@ -645,14 +722,12 @@ function buildInfluencerGrid(rows, opts){
     const labelCol = opts.labelCol;
     const rawLabel = labelCol ? (grp[0][labelCol] || key) : key;
     const slotKey = opts.slotPrefix + '::' + key;
-    const overrideKey = opts.slotPrefix + '::name::' + key;
-    let nameHtml;
-    if(opts.editable){
-      const val = STATE.nameOverrides[overrideKey] !== undefined ? STATE.nameOverrides[overrideKey] : rawLabel;
-      nameHtml = `<input type="text" data-name-override="${esc(overrideKey)}" value="${esc(val)}" placeholder="이름 입력">`;
-    } else {
-      nameHtml = `<div class="readonly-name">${esc(rawLabel)}</div>`;
+    let displayLabel = rawLabel;
+    if(opts.numberFrom && opts.numberFrom.col){
+      const n = extractNum(grp[0][opts.numberFrom.col], opts.numberFrom.keyword);
+      if(n!==null) displayLabel = `${rawLabel} (${opts.numberFrom.prefix} ${n})`;
     }
+    const nameHtml = `<div class="readonly-name">${esc(displayLabel)}</div>`;
     const cardHl = STATE.cardHighlights[slotKey] ? 'card-hl' : '';
     const metricHl = m => STATE.highlights[slotKey] && STATE.highlights[slotKey].includes(m) ? 'hl' : '';
     return `<div class="inf-card ${cardHl}" data-card-key="${esc(slotKey)}">
@@ -871,6 +946,8 @@ function renderSummaryTab(){
   html += `<div class="card">${sectionHead('sum-campaign-table','# 캠페인별 비교')}
     <div class="table-wrap">${buildCountryGroupedCampaignTable('sum-campaign-table', rows, countryCol, displayKeyFn)}</div></div>`;
 
+  html += `<div class="card">${sectionHead('sum-mix-comment','미디어믹스 대비 성과 비교 코멘트')}${buildCommentEditor('sum-mix-comment','미디어믹스 대비 실집행 성과에 대한 코멘트를 입력하세요')}</div>`;
+
   html += `<div class="card">${sectionHead('sum-mix-table','# 미디어믹스 대비 성과 비교')}
     <div class="table-wrap">${buildMediaMixTable(rows, STATE.targets.summary)}</div></div>`;
 
@@ -903,7 +980,7 @@ function renderSummaryTab(){
 
 function renderCountryTab(country){
   const countryCol=CONFIG.fieldMap.country, mediaCol=CONFIG.fieldMap.media, brandCol=CONFIG.fieldMap.brand;
-  const campaignCol=CONFIG.fieldMap.campaign, ctCol=CONFIG.fieldMap.creativeType, infCol=CONFIG.fieldMap.influencer, adCol=CONFIG.fieldMap.ad;
+  const campaignCol=CONFIG.fieldMap.campaign, ctCol=CONFIG.fieldMap.creativeType, infCol=CONFIG.fieldMap.influencer, adCol=CONFIG.fieldMap.ad, adGroupCol=CONFIG.fieldMap.adGroup;
   const rows = baseRows().filter(r => countryCol && String(r[countryCol])===country);
   const cKey = country.replace(/[^a-zA-Z0-9]/g,'_');
   const a = aggregate(rows);
@@ -957,26 +1034,34 @@ function renderCountryTab(country){
     const manualRows = rows.filter(r => String(r[ctCol])!=='Spark Ads' && String(r[ctCol])!=='Partnership Ads');
     if(manualRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-manual','# Meta 소재 (인플루언서별)')}
-        ${buildInfluencerGrid(manualRows, {groupCol: infCol||adCol, labelCol: infCol||adCol, editable:false, slotPrefix:'c-'+cKey+'-manual'})}</div>`;
+        ${buildInfluencerGrid(manualRows, {groupCol: infCol||adCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-manual'})}</div>`;
     }
     const partnershipRows = rows.filter(r => String(r[ctCol])==='Partnership Ads');
     if(partnershipRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-partnership','# Partnership Ads')}
-        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, editable:true, slotPrefix:'c-'+cKey+'-partnership'})}</div>`;
+        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-partnership', numberFrom:{col:adGroupCol, keyword:'partnership ads', prefix:'Partnership Ads'}})}</div>`;
     }
     const sparkRows = rows.filter(r => String(r[ctCol])==='Spark Ads');
     if(sparkRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-spark','# TikTok Spark Ads')}
-        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, editable:true, slotPrefix:'c-'+cKey+'-spark'})}</div>`;
+        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-spark', numberFrom:{col:campaignCol, keyword:'spark ads', prefix:'Spark Ads'}})}</div>`;
     }
   }
 
   document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
 }
 
+function updateDateRangeLabel(){
+  const el = document.getElementById('dateRangeLabel');
+  if(!el) return;
+  const range = STATE.dateRange || {};
+  el.textContent = (range.start || range.end) ? `${range.start||'시작일 미지정'} ~ ${range.end||'종료일 미지정'}` : '전체 기간 (기간 미지정)';
+}
+
 function renderCurrentTab(){
+  updateDateRangeLabel();
   if(RAWROWS.length===0){
-    document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active"><div class="empty-state">데이터가 없어요. Sync를 눌러주세요.</div></div>`;
+    document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active"><div class="empty-state">데이터가 없어요. 설정에서 Sync를 눌러주세요.</div></div>`;
     return;
   }
   if(currentTab==='summary') renderSummaryTab();
@@ -1075,10 +1160,11 @@ async function syncData(){
     if(coreKeys.some(k=>!CONFIG.fieldMap[k]) && RAWHEADERS.length){ CONFIG.fieldMap = guessMapping(RAWHEADERS); saveJSON(LS.config, CONFIG); }
     rebuildTabBar();
     renderCurrentTab();
-    document.getElementById('statusLabel').textContent = new Date().toLocaleString('ko-KR')+' · '+RAWROWS.length.toLocaleString()+'행';
+    const statusEl = document.getElementById('syncStatusLine');
+    if(statusEl) statusEl.textContent = '마지막 동기화: '+new Date().toLocaleString('ko-KR')+' · '+RAWROWS.length.toLocaleString()+'행';
     showBanner('동기화 완료 ('+RAWROWS.length.toLocaleString()+'행)','ok');
   }catch(e){ showBanner('동기화 실패: '+e.message,'error'); }
-  finally{ btn.disabled=false; btn.innerHTML='⟲ Sync'; }
+  finally{ btn.disabled=false; btn.innerHTML='⟲ 데이터 Sync'; }
 }
 document.getElementById('syncBtn').addEventListener('click', syncData);
 document.getElementById('saveBtn').addEventListener('click', saveStateToServer);
@@ -1260,7 +1346,7 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
     renderCurrentTab();
     pdf.save(`월간리뷰_전체_${toDateInput(new Date())}.pdf`);
   }catch(e){ showBanner('PDF 생성 실패: '+e.message,'error'); }
-  finally{ btn.disabled=false; btn.innerHTML='📄 PDF'; }
+  finally{ btn.disabled=false; btn.innerHTML='📄 PDF 내보내기'; }
 });
 
 /* ===========================================================
