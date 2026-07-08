@@ -107,15 +107,30 @@
   .section-mark{display:inline-block; width:3px; height:13px; background:var(--primary); margin-right:6px; vertical-align:-2px; border-radius:2px;}
   .stat-line{font-size:13px; font-weight:600; color:var(--text); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;}
 
-  .delta-pill{display:inline-flex; align-items:center; gap:4px; font-weight:700;}
-  .delta-pill .delta-tri{font-size:9px; line-height:1;}
-  .delta-pill.delta-good{color:var(--good);}
-  .delta-pill.delta-bad{color:var(--bad);}
-  .delta-pill.delta-flat{color:var(--text-faint);}
+  .stat-cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:10px;}
+  .stat-card{display:flex; align-items:center; gap:11px; background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:13px 14px; transition:transform .15s ease, box-shadow .15s ease;}
+  .stat-card:hover{transform:translateY(-2px); box-shadow:0 8px 18px rgba(11,42,33,0.08);}
+  .stat-card .icon-wrap{width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .stat-card .icon-wrap svg{width:18px; height:18px;}
+  .stat-card .icon-wrap.c-green{background:var(--primary-tint); color:var(--ap-green-700);}
+  .stat-card .icon-wrap.c-gold{background:#F5ECD8; color:var(--ap-gold-dark);}
+  .stat-card .icon-wrap.c-teal{background:var(--teal-tint); color:var(--teal);}
+  .stat-card .icon-wrap.c-amber{background:var(--amber-tint); color:var(--amber);}
+  .stat-card-value{font-size:17px; font-weight:800; color:var(--text); font-family:var(--font-mono); letter-spacing:-0.01em; line-height:1.2;}
+  .stat-card-label{font-size:10.5px; color:var(--text-faint); font-weight:700; margin-top:2px; letter-spacing:0.02em;}
+
+  .delta-pill{display:inline-flex; align-items:center; gap:3px; font-weight:700; padding:2px 7px 2px 6px; border-radius:20px; font-size:11.5px;}
+  .delta-pill .delta-tri{font-size:8px; line-height:1;}
+  .delta-pill.delta-good{color:var(--good); background:var(--good-tint);}
+  .delta-pill.delta-bad{color:var(--bad); background:var(--bad-tint);}
+  .delta-pill.delta-flat{color:var(--text-faint); background:var(--surface-2);}
+
+  .card.card-comment{background:var(--surface-2);}
+  .card.card-comment::before{background:linear-gradient(90deg, var(--ap-gold), var(--ap-gold-light));}
 
   .editor-toolbar{display:none; gap:4px; margin-bottom:8px;}
   .comment-wrap:focus-within .editor-toolbar{display:flex;}
-  .editor-toolbar button{border:1px solid var(--border); background:var(--surface-2); border-radius:6px; width:28px; height:28px; font-size:12px; font-weight:700;}
+  .editor-toolbar button{border:1px solid var(--border); background:var(--surface); border-radius:6px; width:28px; height:28px; font-size:12px; font-weight:700;}
   .editor-toolbar select{border:1px solid var(--border); border-radius:6px; font-size:11.5px; padding:2px 4px;}
   .comment-box{min-height:70px; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; outline:none; background:#fff;}
   .comment-box:focus{border-color:var(--primary);}
@@ -123,8 +138,10 @@
 
   .table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:12px;}
   table{width:100%; border-collapse:collapse; font-size:12.5px; min-width:600px;}
-  thead th{background:linear-gradient(180deg,#F9FAFC,#F1F3F7); color:var(--text-dim); font-weight:700; text-align:right; padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; letter-spacing:0.01em;}
+  thead th{background:linear-gradient(180deg,#F9FAFC,#F1F3F7); color:var(--ap-green-900); font-weight:800; text-align:right; padding:10px; border-bottom:2px solid var(--ap-gold); white-space:nowrap; letter-spacing:0.01em; font-size:11.5px;}
   thead th:first-child{text-align:left;}
+  tbody tr:nth-child(even) td:not(.hl){background:var(--surface-2);}
+  tbody tr:nth-child(even):hover td:not(.hl){background:#F2F0E6;}
   tbody td{padding:7px 10px; text-align:right; border-bottom:1px solid #EEF0F5; font-family:var(--font-mono); white-space:nowrap; cursor:pointer; transition:background .1s ease;}
   tbody td:first-child{text-align:left; font-family:var(--font-sans); cursor:default;}
   tbody tr:hover td{background:#F5F7FB;}
@@ -154,7 +171,7 @@
   .inf-name .readonly-name{font-size:11.5px; font-weight:700; padding:2px 0;}
 
   .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
-  .chart-wrap{height:380px; position:relative;}
+  .chart-wrap{height:480px; position:relative;}
 
   .modal-overlay{display:none; position:fixed; inset:0; background:rgba(20,22,40,0.45); z-index:100; align-items:center; justify-content:center; padding:20px;}
   .modal-overlay.show{display:flex;}
@@ -420,6 +437,23 @@ function groupBy(rows, keyFn){
 // 엑셀과 동일한 컬럼 순서: 광고비, 노출, 클릭, CPM, CPC, CTR, 조회, VTR, CPV
 const KO_HEADERS = ['광고비','노출','클릭','랜딩페이지뷰','CPM','CPC','CTR','조회','VTR','CPV'];
 function koCells(a){ return [fmtWon(a.spent), fmtInt(a.impression), fmtInt(a.click), fmtInt(a.landingView), fmtInt(a.cpm), fmtInt(a.cpc), fmtPct(a.ctr), fmtInt(a.view), fmtPct(a.vtr), fmtInt(a.cpv)]; }
+
+/* ===========================================================
+   KPI 스탯 카드 (아이콘 + 큰 숫자)
+=========================================================== */
+const ICONS = {
+  won:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="3"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/></svg>',
+  click:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l7 17 2-7 7-2z"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>',
+  target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg>',
+  play:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5v-7z" fill="currentColor" stroke="none"/></svg>',
+  tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l9 9-9.5 9.5a1.5 1.5 0 0 1-2 0L2 14V2z"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>'
+};
+function statCard(icon, accent, value, label){
+  return `<div class="stat-card"><div class="icon-wrap c-${accent}">${ICONS[icon]||''}</div>
+    <div><div class="stat-card-value">${value}</div><div class="stat-card-label">${label}</div></div></div>`;
+}
+function buildStatCards(cards){ return `<div class="stat-cards">${cards.join('')}</div>`; }
 
 /* ===========================================================
    표: 캠페인 성과 (단순 + TOTAL)
@@ -775,6 +809,7 @@ function buildInfluencerGrid(rows, opts){
 function chartsAvailable(){ return typeof Chart !== 'undefined'; }
 function showChartFallback(canvas,msg){ if(!canvas) return; canvas.parentElement.innerHTML = `<div class="empty-state">${esc(msg)}</div>`; }
 const MARK_START_COLOR='#154A38', MARK_END_COLOR='#8C6B32';
+const MARKER_TOP_RESERVE=96; // 마커 라벨이 막대/라인을 덮지 않도록 차트 위쪽에 미리 비워두는 여백(px)
 function drawPill(ctx,x,y,text,bg,align){
   ctx.font='10px Pretendard, sans-serif';
   const padX=6,h=16; const textW=ctx.measureText(text).width; const w=textW+padX*2;
@@ -799,11 +834,14 @@ const markerLinePlugin = {
     opts.markers.forEach(m=>{ if(!byIndex.has(m.index)) byIndex.set(m.index,[]); byIndex.get(m.index).push(m); });
     const indexX = new Map();
     byIndex.forEach((_,index)=>{ const p=meta.data[index]; if(p) indexX.set(index,p.x); });
+    const boxH=16, gap=3, hGap=4;
+    const labelTop = chartArea.top - MARKER_TOP_RESERVE + 4;
+    const maxLanes = Math.max(1, Math.floor((MARKER_TOP_RESERVE-8)/(boxH+gap)));
     byIndex.forEach((entries,index)=>{
       const x=indexX.get(index); if(x===undefined||!isFinite(x)||x<chartArea.left||x>chartArea.right) return;
       const hasStart = entries.some(e=>e.kind==='시작');
       ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle=hasStart?MARK_START_COLOR:MARK_END_COLOR; ctx.lineWidth=1;
-      ctx.moveTo(x,chartArea.top); ctx.lineTo(x,chartArea.bottom); ctx.stroke(); ctx.setLineDash([]);
+      ctx.moveTo(x,labelTop); ctx.lineTo(x,chartArea.bottom); ctx.stroke(); ctx.setLineDash([]);
     });
     let boxes=[];
     byIndex.forEach((entries,index)=>{
@@ -816,13 +854,13 @@ const markerLinePlugin = {
       });
     });
     boxes.sort((a,b)=>a.left-b.left);
-    const laneRightEdge=[]; const boxH=16, gap=3, hGap=4;
+    const laneRightEdge=[];
     boxes.forEach(b=>{
       let lane = laneRightEdge.findIndex(edge=>b.left>edge+hGap);
       if(lane===-1){ lane=laneRightEdge.length; laneRightEdge.push(-Infinity); }
-      laneRightEdge[lane]=b.right; b.lane=lane;
+      laneRightEdge[lane]=b.right; b.lane=Math.min(lane, maxLanes-1);
     });
-    boxes.forEach(b=>{ const y=chartArea.top+4+b.lane*(boxH+gap); drawPill(ctx,b.align==='right'?b.x-4:b.x+4,y,b.text,b.color,b.align); });
+    boxes.forEach(b=>{ const y=labelTop+b.lane*(boxH+gap); drawPill(ctx,b.align==='right'?b.x-4:b.x+4,y,b.text,b.color,b.align); });
     ctx.restore();
     }catch(e){
       const opts = chart.options.plugins && chart.options.plugins.markerLines;
@@ -931,13 +969,14 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
     const markerLinesOpt = {markers};
     charts[chartKey] = new Chart(canvas, {
       data:{ labels:days, datasets:[
-        { type:'bar', label:'Spend (₩)', data:spend, backgroundColor:'rgba(15,30,61,0.55)', yAxisID:'y', order:2 },
+        { type:'bar', label:'Spend (₩)', data:spend, backgroundColor:'rgba(11,42,33,0.55)', borderRadius:3, yAxisID:'y', order:2 },
         { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 },
         { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 }
       ]},
       // 전역 Chart.register 타이밍(CDN 폴백 등)에 기대지 않도록 이 차트에 직접 플러그인을 붙임
       plugins:[markerLinePlugin],
       options:{ responsive:true, maintainAspectRatio:false, animation:false,
+        layout:{ padding:{ top: MARKER_TOP_RESERVE } },
         plugins:{ legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}}, markerLines:markerLinesOpt },
         scales:{ y:{position:'left',ticks:{callback:v=>fmtWon(v)},title:{display:true,text:'Spend (₩)',font:{size:10}}},
                  y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'CTR / VTR',font:{size:10}}} }
@@ -990,25 +1029,30 @@ function renderSummaryTab(){
 
   let html = `<div class="card">
     ${sectionHead('sum-overview-title','캠페인 개요')}
-    <div class="stat-line">총 광고비 ${fmtWon(a.spent)}, 총 유입 ${fmtInt(a.click)}회, CTR ${fmtPct(a.ctr)}, VTR ${fmtPct(a.vtr)}</div>
-    <div style="font-size:11.5px; color:var(--text-faint); margin-top:8px;">
+    ${buildStatCards([
+      statCard('won','green',fmtWon(a.spent),'총 광고비'),
+      statCard('click','teal',fmtInt(a.click)+'회','총 유입(클릭)'),
+      statCard('target','gold',fmtPct(a.ctr),'CTR'),
+      statCard('play','amber',fmtPct(a.vtr),'VTR')
+    ])}
+    <div style="font-size:11.5px; color:var(--text-faint); margin-top:12px;">
       적용된 필터 — 기간: <b>${STATE.dateRange.start||'전체'} ~ ${STATE.dateRange.end||'전체'}</b> ·
       제외 캠페인 <b>${STATE.excludedCampaigns.length}</b>개 · 제외 광고그룹 <b>${STATE.excludedAdGroups.length}</b>개 ·
       전체 ${RAWROWS.length.toLocaleString()}행 중 <b>${rows.length.toLocaleString()}</b>행 반영
     </div>
   </div>`;
 
-  html += `<div class="card">${sectionHead('sum-country-comment','국가별 코멘트')}${buildCommentEditor('sum-country-comment','국가별 성과 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('sum-country-comment','국가별 코멘트')}${buildCommentEditor('sum-country-comment','국가별 성과 코멘트를 입력하세요')}</div>`;
 
   html += `<div class="card">${sectionHead('sum-campaign-table','# 캠페인별 비교')}
     <div class="table-wrap">${buildCountryGroupedCampaignTable('sum-campaign-table', rows, countryCol, displayKeyFn)}</div></div>`;
 
-  html += `<div class="card">${sectionHead('sum-mix-comment','미디어믹스 대비 성과 비교 코멘트')}${buildCommentEditor('sum-mix-comment','미디어믹스 대비 실집행 성과에 대한 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('sum-mix-comment','미디어믹스 대비 성과 비교 코멘트')}${buildCommentEditor('sum-mix-comment','미디어믹스 대비 실집행 성과에 대한 코멘트를 입력하세요')}</div>`;
 
   html += `<div class="card">${sectionHead('sum-mix-table','# 미디어믹스 대비 성과 비교')}
     <div class="table-wrap">${buildMediaMixTable(rows, STATE.targets.summary)}</div></div>`;
 
-  html += `<div class="card">${sectionHead('sum-media-comment','매체별 코멘트')}${buildCommentEditor('sum-media-comment','Meta/TikTok 매체별 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('sum-media-comment','매체별 코멘트')}${buildCommentEditor('sum-media-comment','Meta/TikTok 매체별 코멘트를 입력하세요')}</div>`;
 
   if(mediaCol){
     uniqueVals(rows, mediaCol).forEach(media=>{
@@ -1020,7 +1064,7 @@ function renderSummaryTab(){
     });
   }
 
-  html += `<div class="card">${sectionHead('sum-timeline-comment','집행 기간에 따른 성과 추이')}${buildCommentEditor('sum-timeline-comment','초기/중반/후반 구간별 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('sum-timeline-comment','집행 기간에 따른 성과 추이')}${buildCommentEditor('sum-timeline-comment','초기/중반/후반 구간별 코멘트를 입력하세요')}</div>`;
 
   html += `<div class="card">${sectionHead('sum-trend-chart','일자별 Spend · CTR · VTR 추이','시작/종료 = Campaign 기준')}
     <div class="chart-wrap"><canvas id="summaryTrendChart"></canvas></div>
@@ -1048,10 +1092,15 @@ function renderCountryTab(country){
 
   let html = `<div class="card">
     ${sectionHead('c-'+cKey+'-overview','캠페인 개요')}
-    <div class="stat-line">광고비 ${fmtWon(a.spent)}, 유입 ${fmtInt(a.click)}회, CTR ${fmtPct(a.ctr)}, CPC ${fmtInt(a.cpc)}원</div>
+    ${buildStatCards([
+      statCard('won','green',fmtWon(a.spent),'광고비'),
+      statCard('click','teal',fmtInt(a.click)+'회','유입(클릭)'),
+      statCard('target','gold',fmtPct(a.ctr),'CTR'),
+      statCard('tag','amber',fmtInt(a.cpc)+'원','CPC')
+    ])}
   </div>`;
 
-  html += `<div class="card">${sectionHead('c-'+cKey+'-comment', country+' 코멘트')}${buildCommentEditor(country+'-comment', country+' 성과 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('c-'+cKey+'-comment', country+' 코멘트')}${buildCommentEditor(country+'-comment', country+' 성과 코멘트를 입력하세요')}</div>`;
 
   html += `<div class="card">${sectionHead('c-'+cKey+'-campaign','# 캠페인 성과')}
     <div class="table-wrap">${buildCampaignTable('c-'+cKey+'-campaign', rows, campaignCol)}</div></div>`;
@@ -1071,7 +1120,7 @@ function renderCountryTab(country){
     });
   }
 
-  html += `<div class="card">${sectionHead('c-'+cKey+'-mix-comment','믹스 대비 성과 비교 코멘트')}${buildCommentEditor(country+'-mix-comment','미디어/캠페인 믹스 대비 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('c-'+cKey+'-mix-comment','믹스 대비 성과 비교 코멘트')}${buildCommentEditor(country+'-mix-comment','미디어/캠페인 믹스 대비 코멘트를 입력하세요')}</div>`;
 
   if(mediaCol){
     uniqueVals(rows, mediaCol).forEach(media=>{
@@ -1083,11 +1132,11 @@ function renderCountryTab(country){
     });
   }
 
-  html += `<div class="card">${sectionHead('c-'+cKey+'-brand-comment','브랜드 성과 비교 코멘트')}${buildCommentEditor(country+'-brand-comment','브랜드별 성과 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('c-'+cKey+'-brand-comment','브랜드 성과 비교 코멘트')}${buildCommentEditor(country+'-brand-comment','브랜드별 성과 코멘트를 입력하세요')}</div>`;
   html += `<div class="card">${sectionHead('c-'+cKey+'-brand-table','# 브랜드 성과 비교')}
     <div class="table-wrap">${buildCampaignTable('c-'+cKey+'-brand-table', rows, brandCol)}</div></div>`;
 
-  html += `<div class="card">${sectionHead('c-'+cKey+'-creative-comment','소재별 성과비교 코멘트')}${buildCommentEditor(country+'-creative-comment','소재별 성과 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card card-comment">${sectionHead('c-'+cKey+'-creative-comment','소재별 성과비교 코멘트')}${buildCommentEditor(country+'-creative-comment','소재별 성과 코멘트를 입력하세요')}</div>`;
 
   if(ctCol){
     const manualRows = rows.filter(r => String(r[ctCol])!=='Spark Ads' && String(r[ctCol])!=='Partnership Ads');
