@@ -301,6 +301,8 @@ if(VIEW_MODE){
   const gearBtn = document.getElementById('settingsBtn');
   if(gearBtn) gearBtn.style.display = 'none';
 }
+// 매핑/차트 진단 로그: 평소엔 숨김, 문제 생기면 주소 끝에 ?debug=1 붙여서 확인
+const DEBUG_MODE = new URLSearchParams(location.search).get('debug') === '1';
 
 const REQUIRED_FIELDS = [
   {key:'date', label:'날짜 (Date)'}, {key:'brand', label:'브랜드 (Brand)'},
@@ -831,7 +833,9 @@ const markerLinePlugin = {
 try{ if(typeof Chart!=='undefined') Chart.register(markerLinePlugin); }catch(e){}
 
 function computeChartEvents(rows, campCol, ctCol, adGroupCol, countryCol, maxEvents){
-  maxEvents = maxEvents || 10;
+  // 캠페인이 많으면 상위 10개로만 잘라서 짝을 이루는 종료 이벤트나 스펜드가 낮은 캠페인이
+  // 통째로 빠지는 문제가 있었음 — 웬만한 리포트 기간에서는 다 보이도록 상한을 크게 올림
+  maxEvents = maxEvents || 60;
   if(!campCol) return [];
   const allDates = rows.map(getDate).filter(Boolean).map(toDateInput);
   if(allDates.length===0) return [];
@@ -939,12 +943,14 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
                  y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'CTR / VTR',font:{size:10}}} }
       }
     });
-    const dbg = document.getElementById('chartDebugInfo');
-    if(dbg){
-      const runInfo = markerLinesOpt._lastRunCount!==undefined
-        ? `플러그인 실행됨(마커 ${markerLinesOpt._lastRunCount}개 처리${markerLinesOpt._lastError?', 오류: '+esc(markerLinesOpt._lastError):''})`
-        : '플러그인이 아직 실행되지 않음(afterDraw 미호출)';
-      dbg.innerHTML += `<br>마커 진단 — 계산된 마커: <b>${markers.length}</b>개 · ${runInfo}`;
+    if(DEBUG_MODE){
+      const dbg = document.getElementById('chartDebugInfo');
+      if(dbg){
+        const runInfo = markerLinesOpt._lastRunCount!==undefined
+          ? `플러그인 실행됨(마커 ${markerLinesOpt._lastRunCount}개 처리${markerLinesOpt._lastError?', 오류: '+esc(markerLinesOpt._lastError):''})`
+          : '플러그인이 아직 실행되지 않음(afterDraw 미호출)';
+        dbg.innerHTML += `<br>마커 진단 — 계산된 마커: <b>${markers.length}</b>개 · ${runInfo}`;
+      }
     }
   }catch(e){
     console.error('renderTrendChart error', e);
@@ -1022,9 +1028,11 @@ function renderSummaryTab(){
 
   document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
 
-  const dbgEvents = computeChartEvents(eventRows, campaignCol, ctCol, adGroupCol, countryCol);
-  document.getElementById('chartDebugInfo').innerHTML =
-    `진단 — Campaign 매핑: <b>${campaignCol||'❌ 없음'}</b> · Creative Type 매핑: <b>${ctCol||'❌ 없음'}</b> · Ad Group 매핑: <b>${adGroupCol||'❌ 없음'}</b> · Country 매핑: <b>${countryCol||'❌ 없음'}</b> · 대상 행: <b>${rows.length.toLocaleString()}</b>개 · 감지된 시작/종료 이벤트: <b>${dbgEvents.length}</b>개`;
+  if(DEBUG_MODE){
+    const dbgEvents = computeChartEvents(eventRows, campaignCol, ctCol, adGroupCol, countryCol);
+    document.getElementById('chartDebugInfo').innerHTML =
+      `진단 — Campaign 매핑: <b>${campaignCol||'❌ 없음'}</b> · Creative Type 매핑: <b>${ctCol||'❌ 없음'}</b> · Ad Group 매핑: <b>${adGroupCol||'❌ 없음'}</b> · Country 매핑: <b>${countryCol||'❌ 없음'}</b> · 대상 행: <b>${rows.length.toLocaleString()}</b>개 · 감지된 시작/종료 이벤트: <b>${dbgEvents.length}</b>개`;
+  }
 
   renderTrendChart('summaryTrendChart','summaryTrend', rows, campaignCol, ctCol, adGroupCol, countryCol, eventRows);
 }
