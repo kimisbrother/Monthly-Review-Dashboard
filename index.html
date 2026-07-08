@@ -309,14 +309,15 @@ const REQUIRED_FIELDS = [
   {key:'influencer', label:'인플루언서 (Influencer) — 선택'}, {key:'campaign', label:'캠페인 (Campaign)'},
   {key:'adGroup', label:'광고그룹 (Ad Group)'}, {key:'ad', label:'광고 (Ad) — 선택'},
   {key:'spent', label:'지출 (Spent)'}, {key:'impression', label:'노출 (Impression)'},
-  {key:'click', label:'클릭 (Click)'}, {key:'view', label:'조회 (View)'}
+  {key:'click', label:'클릭 (Click)'}, {key:'landingView', label:'랜딩 페이지 조회 (Landing Page View) — 선택'},
+  {key:'view', label:'조회 (View)'}
 ];
 
 let RAWROWS = [], RAWHEADERS = [];
 let STATE = {
   dateRange:{start:'',end:''}, excludedCampaigns:[], excludedAdGroups:[], tableTitles:{}, comments:{}, highlights:{},
   cardHighlights:{}, images:{},
-  targets:{ summary:{budget:0,impression:0,click:0,view:0}, country:{} },
+  targets:{ summary:{budget:0,impression:0,click:0,landingView:0,view:0}, country:{} },
   optDates:{}
 };
 let charts = {};
@@ -332,7 +333,7 @@ function ensureStateShape(){
   STATE.cardHighlights = STATE.cardHighlights || {};
   STATE.images = STATE.images || {};
   STATE.targets = STATE.targets || {};
-  STATE.targets.summary = STATE.targets.summary || {budget:0,impression:0,click:0,view:0};
+  STATE.targets.summary = STATE.targets.summary || {budget:0,impression:0,click:0,landingView:0,view:0};
   STATE.targets.country = STATE.targets.country || {};
   STATE.optDates = STATE.optDates || {};
 }
@@ -397,9 +398,9 @@ function countriesBySpend(){
     .map(x=>x.name);
 }
 function aggregate(rows){
-  let spent=0, impression=0, click=0, view=0;
-  for(const r of rows){ spent+=num(r,'spent'); impression+=num(r,'impression'); click+=num(r,'click'); view+=num(r,'view'); }
-  return { spent, impression, click, view,
+  let spent=0, impression=0, click=0, view=0, landingView=0;
+  for(const r of rows){ spent+=num(r,'spent'); impression+=num(r,'impression'); click+=num(r,'click'); view+=num(r,'view'); landingView+=num(r,'landingView'); }
+  return { spent, impression, click, view, landingView,
     ctr: safeDiv(click,impression), cpc: safeDiv(spent,click), cpm: safeDiv(spent,impression)*1000,
     vtr: safeDiv(view,impression), cpv: safeDiv(spent,view) };
 }
@@ -415,8 +416,8 @@ function groupBy(rows, keyFn){
   return map;
 }
 // 엑셀과 동일한 컬럼 순서: 광고비, 노출, 클릭, CPM, CPC, CTR, 조회, VTR, CPV
-const KO_HEADERS = ['광고비','노출','클릭','CPM','CPC','CTR','조회','VTR','CPV'];
-function koCells(a){ return [fmtWon(a.spent), fmtInt(a.impression), fmtInt(a.click), fmtInt(a.cpm), fmtInt(a.cpc), fmtPct(a.ctr), fmtInt(a.view), fmtPct(a.vtr), fmtInt(a.cpv)]; }
+const KO_HEADERS = ['광고비','노출','클릭','랜딩페이지뷰','CPM','CPC','CTR','조회','VTR','CPV'];
+function koCells(a){ return [fmtWon(a.spent), fmtInt(a.impression), fmtInt(a.click), fmtInt(a.landingView), fmtInt(a.cpm), fmtInt(a.cpc), fmtPct(a.ctr), fmtInt(a.view), fmtPct(a.vtr), fmtInt(a.cpv)]; }
 
 /* ===========================================================
    표: 캠페인 성과 (단순 + TOTAL)
@@ -530,14 +531,14 @@ function deltaBadge(key, current, base){
   return `<span class="delta-pill ${cls}"><span class="delta-tri">${arrow}</span>${valueStr}</span>`;
 }
 function buildDeltaRow(actual, base){
-  return ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>deltaBadge(k, actual[k], base[k]));
+  return ['spent','impression','click','landingView','cpm','cpc','ctr','view','vtr','cpv'].map(k=>deltaBadge(k, actual[k], base[k]));
 }
 
 function buildMediaMixTable(rows, target){
-  const t = target || {budget:0,impression:0,click:0,view:0};
-  const tSpent = Number(t.budget)||0, tImp = Number(t.impression)||0, tClick = Number(t.click)||0, tView = Number(t.view)||0;
+  const t = target || {budget:0,impression:0,click:0,landingView:0,view:0};
+  const tSpent = Number(t.budget)||0, tImp = Number(t.impression)||0, tClick = Number(t.click)||0, tLandingView = Number(t.landingView)||0, tView = Number(t.view)||0;
   const targetAgg = {
-    spent:tSpent, impression:tImp, click:tClick, view:tView,
+    spent:tSpent, impression:tImp, click:tClick, landingView:tLandingView, view:tView,
     ctr:safeDiv(tClick,tImp), cpc:safeDiv(tSpent,tClick), cpm:safeDiv(tSpent,tImp)*1000,
     vtr:safeDiv(tView,tImp), cpv:safeDiv(tSpent,tView)
   };
@@ -771,7 +772,7 @@ function buildInfluencerGrid(rows, opts){
 =========================================================== */
 function chartsAvailable(){ return typeof Chart !== 'undefined'; }
 function showChartFallback(canvas,msg){ if(!canvas) return; canvas.parentElement.innerHTML = `<div class="empty-state">${esc(msg)}</div>`; }
-const MARK_START_COLOR='#0F1E3D', MARK_END_COLOR='#9CA3AF';
+const MARK_START_COLOR='#154A38', MARK_END_COLOR='#8C6B32';
 function drawPill(ctx,x,y,text,bg,align){
   ctx.font='10px Pretendard, sans-serif';
   const padX=6,h=16; const textW=ctx.measureText(text).width; const w=textW+padX*2;
@@ -889,9 +890,19 @@ function computeChartEvents(rows, campCol, ctCol, adGroupCol, countryCol, maxEve
   return events.slice(0, maxEvents);
 }
 function buildMarkerOptsFromEvents(events, days){
-  return events
-    .map(e=>({ index: days.indexOf(e.date), name:e.label, kind:e.kind }))
-    .filter(m=>m.index>=0);
+  if(!days.length) return [];
+  const dayTime = days.map(d=>new Date(d).getTime());
+  return events.map(e=>{
+    let idx = days.indexOf(e.date);
+    if(idx<0){
+      // 날짜 표기 차이(경계값 등)로 정확히 일치하지 않으면 가장 가까운 날짜에 스냅
+      const target = new Date(e.date).getTime();
+      let best=0, bestDiff=Infinity;
+      dayTime.forEach((t,i)=>{ const diff=Math.abs(t-target); if(diff<bestDiff){ bestDiff=diff; best=i; } });
+      idx = best;
+    }
+    return { index: idx, name:e.label, kind:e.kind };
+  });
 }
 function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, countryCol, eventRows){
   try{
@@ -1145,7 +1156,9 @@ function guessMapping(headers){
     objective:['objective','목적'], creativeType:['creative type','creative','소재유형'],
     influencer:['influencer','creator','인플루언서','크리에이터'], campaign:['campaign','캠페인'],
     adGroup:['ad group','adgroup','광고그룹','광고 그룹'], ad:['ad','광고'],
-    spent:['spent','spend','지출'], impression:['impression','imps','노출'], click:['click','클릭'], view:['view','조회']
+    spent:['spent','spend','지출'], impression:['impression','imps','노출'], click:['click','클릭'],
+    landingView:['landing page view','landing page views','lpv','landing view','랜딩 페이지 조회','랜딩페이지 조회','랜딩뷰'],
+    view:['view','조회']
   };
   const map = {...CONFIG.fieldMap};
   Object.entries(guesses).forEach(([key,patterns])=>{
@@ -1227,12 +1240,13 @@ function buildMappingUI(headers){
 function buildTargetSummaryUI(){
   const t = STATE.targets.summary;
   document.getElementById('targetSummaryGrid').innerHTML = `
-    <div class="target-header"><span class="spacer"></span><span>Budget</span><span>Impression</span><span>Click</span><span>View</span></div>
+    <div class="target-header"><span class="spacer"></span><span>Budget</span><span>Impression</span><span>Click</span><span>LP View</span><span>View</span></div>
     <div class="target-row-grid">
       <div class="trg-label">Target</div>
       <input type="number" id="tsum-budget" value="${t.budget||0}">
       <input type="number" id="tsum-impression" value="${t.impression||0}">
       <input type="number" id="tsum-click" value="${t.click||0}">
+      <input type="number" id="tsum-landingView" value="${t.landingView||0}">
       <input type="number" id="tsum-view" value="${t.view||0}">
     </div>`;
 }
@@ -1249,12 +1263,13 @@ function buildTargetCountryUI(){
     const mediaRows = medias.map(media=>{
       const mk = media.toLowerCase();
       const mt = t[mk] || {};
-      return `<div class="target-header"><span class="spacer"></span><span>Budget</span><span>Impression</span><span>Click</span><span>View</span></div>
+      return `<div class="target-header"><span class="spacer"></span><span>Budget</span><span>Impression</span><span>Click</span><span>LP View</span><span>View</span></div>
       <div class="target-row-grid">
         <div class="trg-label">${esc(media)}</div>
         <input type="number" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="budget" value="${mt.budget||0}">
         <input type="number" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="impression" value="${mt.impression||0}">
         <input type="number" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="click" value="${mt.click||0}">
+        <input type="number" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="landingView" value="${mt.landingView||0}">
         <input type="number" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="view" value="${mt.view||0}">
       </div>
       <div class="field" style="margin-top:2px;"><label style="font-weight:500;">${esc(media)} 최적화 적용일 (선택)</label>
@@ -1299,6 +1314,7 @@ document.getElementById('modalSave').addEventListener('click', ()=>{
     budget: Number(document.getElementById('tsum-budget').value)||0,
     impression: Number(document.getElementById('tsum-impression').value)||0,
     click: Number(document.getElementById('tsum-click').value)||0,
+    landingView: Number(document.getElementById('tsum-landingView').value)||0,
     view: Number(document.getElementById('tsum-view').value)||0
   };
   document.querySelectorAll('[data-t-country]').forEach(inp=>{
