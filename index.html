@@ -15,7 +15,7 @@
     --bg:#F6F4EC; --surface:#FFFFFF; --surface-2:#FBF9F2; --border:#E6E1D1;
     --text:#1B2019; --text-dim:#5F6B62; --text-faint:#93998A;
     --ap-green-900:#0B2A21; --ap-green-700:#154A38; --ap-green-500:#1F7A54;
-    --ap-gold:#C7A25C; --ap-gold-light:#EAD9AF;
+    --ap-gold:#C7A25C; --ap-gold-light:#EAD9AF; --ap-gold-dark:#8C6B32;
     --primary:var(--ap-green-900); --primary-dim:var(--ap-green-700); --primary-tint:#E7EFE9;
     --teal:#0C8C7D; --teal-tint:#E6F5F3; --amber:#C2760C; --amber-tint:#FBF0DF;
     --red:#C0392B; --red-tint:#FBEAEA;
@@ -44,36 +44,29 @@
   body.view-mode .inf-card{cursor:default;}
   body.view-mode .inf-card:hover{transform:none; box-shadow:none;}
 
+  .header-panel{
+    position:sticky; top:14px; z-index:40; border-radius:22px; overflow:hidden;
+    background:var(--surface); border:1px solid var(--border);
+    box-shadow:0 1px 2px rgba(11,42,33,0.04), 0 14px 30px rgba(11,42,33,0.08);
+  }
+  .header-panel::before{content:''; display:block; height:3px; background:linear-gradient(90deg, var(--ap-green-700), var(--ap-gold));}
   .topbar{
-    position:sticky; top:14px; z-index:40; border-radius:26px; isolation:isolate;
-    background:
-      radial-gradient(420px 260px at 12% 0%, rgba(234,217,175,0.16), transparent 55%),
-      radial-gradient(520px 320px at 92% 110%, rgba(199,162,92,0.22), transparent 60%),
-      linear-gradient(160deg, #0D3226 0%, var(--ap-green-900) 45%, #0A241C 100%);
-    padding:26px 30px 24px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
-    box-shadow:0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 34px rgba(11,42,33,0.30), 0 2px 8px rgba(11,42,33,0.18);
-    border:1px solid rgba(234,217,175,0.22);
-    overflow:hidden;
+    padding:22px 28px 20px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
   }
-  .topbar::after{
-    content:''; position:absolute; inset:0; pointer-events:none; z-index:-1;
-    background-image:repeating-linear-gradient(115deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 5px);
-    mix-blend-mode:overlay;
-  }
-  .kicker{font-size:10.5px; font-weight:700; color:var(--ap-gold-light); letter-spacing:0.22em; opacity:0.85; margin-bottom:8px;}
-  .topbar-title h1{font-size:27px; font-weight:700; margin:0; letter-spacing:-0.005em; color:#FBF7EC; font-family:var(--font-sans);}
-  .period{display:flex; align-items:baseline; gap:9px; margin-top:14px; padding-top:12px; border-top:1px solid rgba(234,217,175,0.22);}
-  .period-label{font-size:10.5px; font-weight:700; color:rgba(234,217,175,0.65); letter-spacing:0.1em;}
-  .period-value{font-size:13.5px; font-weight:600; color:var(--ap-gold-light); letter-spacing:0.01em;}
+  .kicker{font-size:10.5px; font-weight:700; color:var(--ap-gold-dark); letter-spacing:0.22em; margin-bottom:8px;}
+  .topbar-title h1{font-size:25px; font-weight:700; margin:0; letter-spacing:-0.005em; color:var(--primary); font-family:var(--font-sans);}
+  .period{display:flex; align-items:baseline; gap:9px; margin-top:14px; padding-top:12px; border-top:1px solid var(--border);}
+  .period-label{font-size:10.5px; font-weight:700; color:var(--text-faint); letter-spacing:0.1em;}
+  .period-value{font-size:13.5px; font-weight:700; color:var(--ap-green-700); letter-spacing:0.01em;}
   .topbar-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .gear-btn{
-    width:38px; height:38px; border-radius:50%; border:1px solid rgba(234,217,175,0.3);
-    background:rgba(255,255,255,0.06); color:#FBF7EC; font-size:16px; line-height:1;
+    width:36px; height:36px; border-radius:50%; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text-dim); font-size:15px; line-height:1;
     display:flex; align-items:center; justify-content:center; padding:0;
-    box-shadow:0 2px 8px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.12) inset;
-    transition:transform .18s ease, background .18s ease;
+    box-shadow:0 1px 2px rgba(11,42,33,0.06);
+    transition:transform .18s ease, background .18s ease, color .18s ease;
   }
-  .gear-btn:hover{background:rgba(255,255,255,0.16); transform:rotate(35deg);}
+  .gear-btn:hover{background:var(--primary-tint); color:var(--ap-green-900); transform:rotate(35deg);}
   .btn{
     display:inline-flex; align-items:center; gap:6px; border-radius:10px; border:1px solid var(--border);
     padding:8px 14px; font-size:12.5px; font-weight:600; color:var(--text);
@@ -97,7 +90,7 @@
   .banner.error{background:var(--bad-tint); color:#8f2323;}
   .banner.ok{background:var(--good-tint); color:#0a5a3f;}
 
-  .tabs{display:flex; gap:2px; padding:9px 14px; margin-top:12px; background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:0 1px 2px rgba(11,42,33,0.03), 0 8px 18px rgba(11,42,33,0.05); overflow-x:auto;}
+  .tabs{display:flex; gap:2px; padding:9px 20px; border-top:1px solid var(--border); overflow-x:auto;}
   .tab-btn{position:relative; border:none; background:transparent; padding:10px 16px; font-size:13px; font-weight:600; color:var(--text-dim); white-space:nowrap; border-radius:10px; transition:all .15s ease;}
   .tab-btn:hover{background:var(--surface-2); color:var(--text);}
   .tab-btn.active{color:var(--ap-green-900); background:var(--primary-tint); font-weight:700;}
@@ -196,22 +189,23 @@
 
 <div class="page-shell">
 
-<div class="topbar">
-  <div class="topbar-title">
-    <div class="kicker">MONTHLY PERFORMANCE REPORT</div>
-    <h1>월간 리뷰 대시보드</h1>
-    <div class="period"><span class="period-label">리포트 기간</span><span class="period-value" id="dateRangeLabel">불러오는 중...</span></div>
+<div class="header-panel">
+  <div class="topbar">
+    <div class="topbar-title">
+      <div class="kicker">MONTHLY PERFORMANCE REPORT</div>
+      <h1>월간 리뷰 대시보드</h1>
+      <div class="period"><span class="period-label">리포트 기간</span><span class="period-value" id="dateRangeLabel">불러오는 중...</span></div>
+    </div>
+    <div class="topbar-controls">
+      <button class="gear-btn" id="settingsBtn" title="설정" aria-label="설정">⚙</button>
+    </div>
   </div>
-  <div class="topbar-controls">
-    <button class="gear-btn" id="settingsBtn" title="설정" aria-label="설정">⚙</button>
+  <div class="tabs" id="tabBar">
+    <button class="tab-btn active" data-tab="summary">Summary</button>
   </div>
 </div>
 
 <div class="banner" id="banner"></div>
-
-<div class="tabs" id="tabBar">
-  <button class="tab-btn active" data-tab="summary">Summary</button>
-</div>
 
 <div id="tabPanels"></div>
 
@@ -363,14 +357,17 @@ function inRange(row, range){
   if(range.end){ const end=new Date(range.end); end.setHours(23,59,59,999); if(d>end) return false; }
   return true;
 }
-function baseRows(){
+function baseRows(opts){
+  opts = opts || {};
   const campCol = CONFIG.fieldMap.campaign;
   const agCol = CONFIG.fieldMap.adGroup;
   const range = STATE.dateRange;
   const hasRange = !!(range && (range.start || range.end));
   // 기간을 지정하면, 그 기간 기준으로 유효 집행(7일 이상) 캠페인 목록에 속한 캠페인만 집계에 포함하고
   // 나머지(경계에 살짝 걸친 캠페인 등)는 자동으로 제외한다. 체크박스 제외는 이 목록 안에서 추가로 뺀다.
-  const eligibleCamps = (hasRange && campCol) ? new Set(eligibleForExclusion(campCol, range)) : null;
+  // 단, opts.skipEligibility가 true면(예: 차트의 시작/종료 마커) 이 제한을 적용하지 않는다 —
+  // 짧게 집행된 캠페인도 타임라인에는 표시돼야 하기 때문.
+  const eligibleCamps = (hasRange && campCol && !opts.skipEligibility) ? new Set(eligibleForExclusion(campCol, range)) : null;
   return RAWROWS.filter(r => inRange(r, range)
     && (!eligibleCamps || eligibleCamps.has(String(r[campCol])))
     && !(campCol && STATE.excludedCampaigns.includes(String(r[campCol])))
@@ -726,23 +723,32 @@ document.addEventListener('paste', e=>{
   for(const item of items){ if(item.type.startsWith('image/')){ const file=item.getAsFile(); if(file){ setSlotImage(hovered.dataset.slot, file); e.preventDefault(); } } }
 });
 function buildInfluencerGrid(rows, opts){
-  // opts: { groupCol, labelCol, slotPrefix, numberFrom:{col, keyword, prefix} }
+  // opts: { groupCol, labelCol, slotPrefix, numberFrom:{col, keyword} }
   const groupCol = opts.groupCol;
   if(!groupCol) return '<div class="empty-state">그룹 기준 컬럼 매핑이 필요해요.</div>';
   const groups = groupBy(rows, groupCol);
-  const keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)');
+  let keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)');
   if(keys.length===0) return '<div class="empty-state">해당 소재유형 데이터가 없어요.</div>';
+  const numberOf = key => (opts.numberFrom && opts.numberFrom.col)
+    ? extractNum(groups.get(key)[0][opts.numberFrom.col], opts.numberFrom.keyword) : null;
+  if(opts.numberFrom && opts.numberFrom.col){
+    // 작은 번호가 앞, 번호가 없는 카드는 뒤로 — 오름차순 자동 정렬
+    keys = keys.slice().sort((k1,k2)=>{
+      const n1 = numberOf(k1), n2 = numberOf(k2);
+      if(n1===null && n2===null) return 0;
+      if(n1===null) return 1;
+      if(n2===null) return -1;
+      return n1-n2;
+    });
+  }
   const cards = keys.map(key=>{
     const grp = groups.get(key);
     const a = aggregate(grp);
     const labelCol = opts.labelCol;
     const rawLabel = labelCol ? (grp[0][labelCol] || key) : key;
     const slotKey = opts.slotPrefix + '::' + key;
-    let displayLabel = rawLabel;
-    if(opts.numberFrom && opts.numberFrom.col){
-      const n = extractNum(grp[0][opts.numberFrom.col], opts.numberFrom.keyword);
-      if(n!==null) displayLabel = `${rawLabel} (${opts.numberFrom.prefix} ${n})`;
-    }
+    const n = numberOf(key);
+    const displayLabel = n!==null ? `${rawLabel} (${n})` : rawLabel;
     const nameHtml = `<div class="readonly-name">${esc(displayLabel)}</div>`;
     const cardHl = STATE.cardHighlights[slotKey] ? 'card-hl' : '';
     const metricHl = m => STATE.highlights[slotKey] && STATE.highlights[slotKey].includes(m) ? 'hl' : '';
@@ -887,7 +893,7 @@ function buildMarkerOptsFromEvents(events, days){
     .map(e=>({ index: days.indexOf(e.date), name:e.label, kind:e.kind }))
     .filter(m=>m.index>=0);
 }
-function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, countryCol){
+function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, countryCol, eventRows){
   try{
     const canvas = document.getElementById(canvasId);
     if(!canvas) return;
@@ -898,7 +904,7 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
     const spend = days.map(d=>aggregate(dayMap.get(d)).spent);
     const ctr = days.map(d=>aggregate(dayMap.get(d)).ctr*100);
     const vtr = days.map(d=>aggregate(dayMap.get(d)).vtr*100);
-    const events = computeChartEvents(rows, campCol, ctCol, adGroupCol, countryCol);
+    const events = computeChartEvents(eventRows || rows, campCol, ctCol, adGroupCol, countryCol);
     const markers = buildMarkerOptsFromEvents(events, days);
     if(charts[chartKey]) charts[chartKey].destroy();
     charts[chartKey] = new Chart(canvas, {
@@ -942,6 +948,8 @@ function sectionHead(tableId, def, hint){
 
 function renderSummaryTab(){
   const rows = baseRows();
+  // 차트의 캠페인 시작/종료 마커는 7일 미만짜리 캠페인도 보여야 하므로 자격 필터를 건너뛴 행을 따로 사용
+  const eventRows = baseRows({skipEligibility:true});
   const brandCol=CONFIG.fieldMap.brand, countryCol=CONFIG.fieldMap.country, campaignCol=CONFIG.fieldMap.campaign, mediaCol=CONFIG.fieldMap.media;
   const ctCol=CONFIG.fieldMap.creativeType, adGroupCol=CONFIG.fieldMap.adGroup;
   const a = aggregate(rows);
@@ -987,11 +995,11 @@ function renderSummaryTab(){
 
   document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
 
-  const dbgEvents = computeChartEvents(rows, campaignCol, ctCol, adGroupCol, countryCol);
+  const dbgEvents = computeChartEvents(eventRows, campaignCol, ctCol, adGroupCol, countryCol);
   document.getElementById('chartDebugInfo').innerHTML =
     `진단 — Campaign 매핑: <b>${campaignCol||'❌ 없음'}</b> · Creative Type 매핑: <b>${ctCol||'❌ 없음'}</b> · Ad Group 매핑: <b>${adGroupCol||'❌ 없음'}</b> · Country 매핑: <b>${countryCol||'❌ 없음'}</b> · 대상 행: <b>${rows.length.toLocaleString()}</b>개 · 감지된 시작/종료 이벤트: <b>${dbgEvents.length}</b>개`;
 
-  renderTrendChart('summaryTrendChart','summaryTrend', rows, campaignCol, ctCol, adGroupCol, countryCol);
+  renderTrendChart('summaryTrendChart','summaryTrend', rows, campaignCol, ctCol, adGroupCol, countryCol, eventRows);
 }
 
 function renderCountryTab(country){
@@ -1055,12 +1063,12 @@ function renderCountryTab(country){
     const partnershipRows = rows.filter(r => String(r[ctCol])==='Partnership Ads');
     if(partnershipRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-partnership','# Partnership Ads')}
-        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-partnership', numberFrom:{col:adGroupCol, keyword:'partnership ads', prefix:'Partnership Ads'}})}</div>`;
+        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-partnership', numberFrom:{col:adGroupCol, keyword:'partnership ads'}})}</div>`;
     }
     const sparkRows = rows.filter(r => String(r[ctCol])==='Spark Ads');
     if(sparkRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-spark','# TikTok Spark Ads')}
-        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-spark', numberFrom:{col:campaignCol, keyword:'spark ads', prefix:'Spark Ads'}})}</div>`;
+        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-spark', numberFrom:{col:campaignCol, keyword:'spark ads'}})}</div>`;
     }
   }
 
