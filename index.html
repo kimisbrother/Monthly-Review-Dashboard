@@ -931,6 +931,8 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
         { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 },
         { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 }
       ]},
+      // 전역 Chart.register 타이밍(CDN 폴백 등)에 기대지 않도록 이 차트에 직접 플러그인을 붙임
+      plugins:[markerLinePlugin],
       options:{ responsive:true, maintainAspectRatio:false, animation:false,
         plugins:{ legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}}, markerLines:markerLinesOpt },
         scales:{ y:{position:'left',ticks:{callback:v=>fmtWon(v)},title:{display:true,text:'Spend (₩)',font:{size:10}}},
