@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>월간 리뷰 대시보드</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';document.head.appendChild(s);"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6FA; --surface:#FFFFFF; --surface-2:#FAFBFD; --border:#E3E6EE;
+    --text:#191B26; --text-dim:#6B7280; --text-faint:#9CA3AF;
+    --primary:#0F1E3D; --primary-dim:#1C2F58; --primary-tint:#EBEEF4;
+    --teal:#0C8C7D; --teal-tint:#E6F5F3; --amber:#C2760C; --amber-tint:#FBF0DF;
+    --red:#C93C3C; --red-tint:#FBEAEA;
+    --radius:12px; --radius-sm:8px;
+    --shadow:0 1px 2px rgba(20,22,40,0.04), 0 4px 16px rgba(20,22,40,0.04);
+    --font-sans:'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:var(--font-sans); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:var(--font-sans);}
+  body::before{content:''; display:block; height:3px; width:100%; background:linear-gradient(90deg, var(--primary) 0%, var(--primary) 60%, #7C8AAE 100%); position:sticky; top:0; z-index:50;}
+
+  .topbar{position:sticky; top:3px; z-index:40; background:var(--surface); border-bottom:1px solid var(--border); padding:12px 22px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .topbar-title h1{font-size:15px; font-weight:700; margin:0; letter-spacing:0.02em; color:var(--primary);}
+  .topbar-title .sub{font-size:11.5px; color:var(--text-faint); font-family:var(--font-mono);}
+  .topbar-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .btn{display:inline-flex; align-items:center; gap:6px; border-radius:var(--radius-sm); border:1px solid var(--border); padding:7px 12px; font-size:12.5px; font-weight:600; background:var(--surface); color:var(--text); transition:all .12s ease;}
+  .btn:hover{background:var(--surface-2); border-color:#D3D7E2;}
+  .btn-primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn-primary:hover{background:var(--primary-dim);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .spin{display:inline-block; animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .banner{padding:9px 22px; font-size:13px; display:none; align-items:center; gap:8px; border-bottom:1px solid var(--border);}
+  .banner.show{display:flex;}
+  .banner.error{background:var(--red-tint); color:#8f2323;}
+  .banner.ok{background:var(--teal-tint); color:#0a5a4f;}
+
+  .tabs{display:flex; gap:2px; padding:0 22px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto;}
+  .tab-btn{border:none; background:transparent; padding:11px 16px; font-size:13px; font-weight:600; color:var(--text-faint); border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap;}
+  .tab-btn.active{color:var(--primary); border-bottom-color:var(--primary);}
+  .tab-panel{display:none; padding:22px; max-width:1400px; margin:0 auto;}
+  .tab-panel.active{display:block;}
+
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:18px; box-shadow:var(--shadow);}
+  .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;}
+  .card-head h2{font-size:14px; font-weight:700; margin:0; outline:none;}
+  .card-head h2[contenteditable]:hover{background:var(--surface-2); border-radius:4px; padding:2px 4px; margin:-2px -4px;}
+  .card-head .hint{font-size:11px; color:var(--text-faint);}
+  .section-mark{display:inline-block; width:3px; height:13px; background:var(--primary); margin-right:6px; vertical-align:-2px; border-radius:2px;}
+  .stat-line{font-size:13px; font-weight:600; color:var(--text); background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px;}
+
+  .editor-toolbar{display:flex; gap:4px; margin-bottom:8px;}
+  .editor-toolbar button{border:1px solid var(--border); background:var(--surface-2); border-radius:6px; width:28px; height:28px; font-size:12px; font-weight:700;}
+  .editor-toolbar select{border:1px solid var(--border); border-radius:6px; font-size:11.5px; padding:2px 4px;}
+  .comment-box{min-height:70px; border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:13px; outline:none; background:#fff;}
+  .comment-box:focus{border-color:var(--primary);}
+  .comment-box:empty:before{content:attr(data-placeholder); color:var(--text-faint);}
+
+  .table-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius-sm);}
+  table{width:100%; border-collapse:collapse; font-size:12.5px; min-width:600px;}
+  thead th{background:var(--surface-2); color:var(--text-dim); font-weight:700; text-align:right; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  thead th:first-child{text-align:left;}
+  tbody td{padding:7px 10px; text-align:right; border-bottom:1px solid #EEF0F5; font-family:var(--font-mono); white-space:nowrap; cursor:pointer;}
+  tbody td:first-child{text-align:left; font-family:var(--font-sans); cursor:default;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.total-row td, tbody tr.subtotal-row td{font-weight:700; background:var(--surface-2); cursor:default;}
+  tbody tr.target-row td, tbody tr.actual-row td, tbody tr.delta-row td{cursor:default;}
+  td.hl{box-shadow:inset 0 0 0 2px var(--red); background:var(--red-tint);}
+  .excluded-tag{display:inline-flex; align-items:center; gap:4px; background:var(--surface-2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:11.5px; margin:2px;}
+  .excluded-tag button{border:none; background:none; color:var(--text-faint); font-size:12px; padding:0;}
+
+  .inf-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px;}
+  .inf-card{border:1px solid var(--border); border-radius:10px; background:var(--surface-2); overflow:hidden;}
+  .img-slot{aspect-ratio:1/1; border-bottom:1.5px dashed var(--border); background:#fff; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;}
+  .img-slot.dragover{border-color:var(--primary); background:var(--primary-tint);}
+  .img-slot img{width:100%; height:100%; object-fit:cover; position:absolute; inset:0;}
+  .img-slot .placeholder{font-size:10.5px; color:var(--text-faint); text-align:center; padding:0 6px;}
+  .img-slot .remove-btn{position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; z-index:3; display:none;}
+  .img-slot:hover .remove-btn{display:block;}
+  .img-slot input[type=file]{display:none;}
+  .inf-name{padding:6px 8px 2px;}
+  .inf-name input{width:100%; border:1px solid var(--border); border-radius:6px; padding:4px 6px; font-size:11.5px;}
+  .inf-name .readonly-name{font-size:11.5px; font-weight:700; padding:2px 0;}
+  .inf-metrics{padding:4px 8px 8px; font-family:var(--font-mono); font-size:10.5px; color:var(--text-dim); display:grid; grid-template-columns:1fr 1fr; gap:2px 6px;}
+  .inf-metrics b{color:var(--text); font-weight:700;}
+
+  .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
+  .chart-wrap{height:380px; position:relative;}
+
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(20,22,40,0.45); z-index:100; align-items:center; justify-content:center; padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff; border-radius:14px; width:100%; max-width:640px; max-height:88vh; overflow-y:auto;}
+  .modal-head{padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff;}
+  .modal-head h3{margin:0; font-size:15px;}
+  .modal-body{padding:18px 20px;}
+  .modal-foot{padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; position:sticky; bottom:0; background:#fff;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:700; margin-bottom:5px;}
+  .field .desc{font-size:11px; color:var(--text-faint); margin-top:4px;}
+  .field input[type=text],.field input[type=date],.field input[type=number],.field select{width:100%; padding:8px 9px; border:1px solid var(--border); border-radius:8px; font-size:13px;}
+  .map-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .status-line{font-size:11.5px; margin-top:6px; display:none;}
+  .status-line.show{display:block;}
+  .status-line.error{color:#8f2323;}
+  .status-line.ok{color:#0a5a4f;}
+  .settings-section{border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:14px;}
+  .settings-section > .ss-title{font-weight:700; font-size:12.5px; margin-bottom:8px;}
+  .target-row-grid{display:grid; grid-template-columns:70px 1fr 1fr 1fr 1fr; gap:6px; align-items:center; margin-bottom:6px;}
+  .target-row-grid input{padding:6px; border:1px solid var(--border); border-radius:6px; font-size:11.5px;}
+  .target-row-grid .trg-label{font-size:11px; font-weight:700; color:var(--text-dim);}
+  details.settings-collapse > summary{cursor:pointer; font-weight:700; font-size:12.5px; padding:4px 0;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <h1>월간 리뷰 대시보드</h1>
+    <div class="sub" id="statusLabel">불러오는 중...</div>
+  </div>
+  <div class="topbar-controls">
+    <button class="btn" id="reloadStateBtn">↻ 불러오기</button>
+    <button class="btn" id="pdfBtn">📄 PDF</button>
+    <button class="btn" id="settingsBtn">⚙️ 설정</button>
+    <button class="btn" id="syncBtn">⟲ Sync</button>
+    <button class="btn btn-primary" id="saveBtn">☁️ 저장</button>
+  </div>
+</div>
+
+<div class="banner" id="banner"></div>
+
+<div class="tabs" id="tabBar">
+  <button class="tab-btn active" data-tab="summary">Summary</button>
+</div>
+
+<div id="tabPanels"></div>
+
+<!-- ===================== SETTINGS MODAL ===================== -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head"><h3>설정</h3><button class="btn" id="modalClose" style="padding:4px 8px;">✕</button></div>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <div class="ss-title">데이터 연결</div>
+        <div class="field"><label>Raw 데이터 CSV 게시 URL</label><input type="text" id="cfg-csvUrl"></div>
+        <div class="field"><label>Apps Script 웹앱 URL</label><input type="text" id="cfg-appsScriptUrl" placeholder="https://script.google.com/macros/s/.../exec">
+          <div class="desc">이 값은 이 브라우저에만 저장돼요. 팀 전체가 공유하려면 코드 상단 APPS_SCRIPT_URL에 직접 채워서 배포하세요.</div>
+        </div>
+        <button class="btn" id="testConnBtn" style="width:100%; justify-content:center;">연결 테스트</button>
+        <div class="status-line" id="connStatus"></div>
+        <div id="mappingSection" style="display:none; margin-top:12px;">
+          <div class="field"><label>컬럼 매핑</label></div>
+          <div class="map-grid" id="mapGrid"></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="ss-title">리뷰 기간 · 제외 캠페인</div>
+        <div class="map-grid">
+          <div class="field"><label>시작일</label><input type="date" id="cfg-rangeStart"></div>
+          <div class="field"><label>종료일</label><input type="date" id="cfg-rangeEnd"></div>
+        </div>
+        <div class="field">
+          <label>제외할 캠페인</label>
+          <select id="excludeSelect"><option value="">-- 캠페인 선택 --</option></select>
+          <div id="excludedTags" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+      <details class="settings-collapse">
+        <summary>Summary 전체 미디어믹스 Target</summary>
+        <div class="settings-section" id="targetSummaryGrid"></div>
+      </details>
+
+      <details class="settings-collapse">
+        <summary>국가별 미디어믹스 Target / Smart+·Advantage 적용일</summary>
+        <div class="settings-section" id="targetCountryGrid"></div>
+      </details>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="modalCancel">취소</button>
+      <button class="btn btn-primary" id="modalSave">저장하고 동기화</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================
+   기본값
+=========================================================== */
+const DEFAULT_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTR5Nd2gEUhxVZEGxr5Hl3EiteaWx1yL6Nio1iRk3Y4dKAofaGzMD1PbKBjF4vjlxzXoeluwVCAu9I7/pub?gid=1112034945&single=true&output=csv';
+const APPS_SCRIPT_URL = '';
+
+const LS = { config:'mrDash_config' };
+function loadJSON(key, fallback){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):fallback; }catch(e){ return fallback; } }
+function saveJSON(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+
+let CONFIG = loadJSON(LS.config, { csvUrl: DEFAULT_CSV_URL, appsScriptUrl: APPS_SCRIPT_URL, fieldMap:{} });
+if(!CONFIG.appsScriptUrl && APPS_SCRIPT_URL) CONFIG.appsScriptUrl = APPS_SCRIPT_URL;
+
+const REQUIRED_FIELDS = [
+  {key:'date', label:'날짜 (Date)'}, {key:'brand', label:'브랜드 (Brand)'},
+  {key:'country', label:'국가 (Country)'}, {key:'media', label:'매체 (Media)'},
+  {key:'objective', label:'목적 (Objective) — 선택'}, {key:'creativeType', label:'소재유형 (Creative Type)'},
+  {key:'influencer', label:'인플루언서 (Influencer) — 선택'}, {key:'campaign', label:'캠페인 (Campaign)'},
+  {key:'ad', label:'광고 (Ad) — 선택'},
+  {key:'spent', label:'지출 (Spent)'}, {key:'impression', label:'노출 (Impression)'},
+  {key:'click', label:'클릭 (Click)'}, {key:'view', label:'조회 (View)'}
+];
+
+let RAWROWS = [], RAWHEADERS = [];
+let STATE = {
+  dateRange:{start:'',end:''}, excludedCampaigns:[], tableTitles:{}, comments:{}, highlights:{},
+  images:{}, nameOverrides:{},
+  targets:{ summary:{budget:0,impression:0,click:0,view:0}, country:{} },
+  optDates:{}
+};
+let charts = {};
+const imageCache = {};
+
+function ensureStateShape(){
+  STATE.dateRange = STATE.dateRange || {start:'',end:''};
+  STATE.excludedCampaigns = STATE.excludedCampaigns || [];
+  STATE.tableTitles = STATE.tableTitles || {};
+  STATE.comments = STATE.comments || {};
+  STATE.highlights = STATE.highlights || {};
+  STATE.images = STATE.images || {};
+  STATE.nameOverrides = STATE.nameOverrides || {};
+  STATE.targets = STATE.targets || {};
+  STATE.targets.summary = STATE.targets.summary || {budget:0,impression:0,click:0,view:0};
+  STATE.targets.country = STATE.targets.country || {};
+  STATE.optDates = STATE.optDates || {};
+}
+
+/* ===========================================================
+   유틸
+=========================================================== */
+function num(row,key){ const col=CONFIG.fieldMap[key]; if(!col) return 0; const v=row[col]; if(v===undefined||v===null||v==='') return 0; const n=parseFloat(String(v).replace(/[,₩\s]/g,'')); return isNaN(n)?0:n; }
+function getDate(row){ const col=CONFIG.fieldMap.date; if(!col) return null; const raw=row[col]; if(!raw) return null; const d=new Date(raw); return isNaN(d.getTime())?null:d; }
+function safeDiv(a,b){ return b?a/b:0; }
+function fmtInt(n){ return Math.round(n||0).toLocaleString('ko-KR'); }
+function fmtWon(n){ return '₩'+fmtInt(n); }
+function fmtPct(n,d=2){ return isFinite(n)?(n*100).toFixed(d)+'%':'-'; }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function toDateInput(d){ if(!(d instanceof Date)||isNaN(d)) return ''; return d.toISOString().slice(0,10); }
+function uniqueVals(rows,col){ const s=new Set(); rows.forEach(r=>{ const v=r[col]; if(v!==undefined&&v!==null&&v!=='') s.add(String(v)); }); return Array.from(s).sort(); }
+
+function inRange(row, range){
+  if(!range || (!range.start && !range.end)) return true;
+  const d = getDate(row); if(!d) return true;
+  if(range.start && d < new Date(range.start)) return false;
+  if(range.end){ const end=new Date(range.end); end.setHours(23,59,59,999); if(d>end) return false; }
+  return true;
+}
+function baseRows(){
+  const campCol = CONFIG.fieldMap.campaign;
+  return RAWROWS.filter(r => inRange(r, STATE.dateRange) && !(campCol && STATE.excludedCampaigns.includes(String(r[campCol]))));
+}
+function aggregate(rows){
+  let spent=0, impression=0, click=0, view=0;
+  for(const r of rows){ spent+=num(r,'spent'); impression+=num(r,'impression'); click+=num(r,'click'); view+=num(r,'view'); }
+  return { spent, impression, click, view,
+    ctr: safeDiv(click,impression), cpc: safeDiv(spent,click), cpm: safeDiv(spent,impression)*1000,
+    vtr: safeDiv(view,impression), cpv: safeDiv(spent,view) };
+}
+function groupBy(rows, keyFn){
+  const map = new Map();
+  for(const r of rows){ const k = typeof keyFn==='function'?keyFn(r):String(r[keyFn]??'(빈값)'); if(!map.has(k)) map.set(k,[]); map.get(k).push(r); }
+  return map;
+}
+// 엑셀과 동일한 컬럼 순서: 광고비, 노출, 클릭, CPM, CPC, CTR, 조회, VTR, CPV
+const KO_HEADERS = ['광고비','노출','클릭','CPM','CPC','CTR','조회','VTR','CPV'];
+function koCells(a){ return [fmtWon(a.spent), fmtInt(a.impression), fmtInt(a.click), fmtInt(a.cpm), fmtInt(a.cpc), fmtPct(a.ctr), fmtInt(a.view), fmtPct(a.vtr), fmtInt(a.cpv)]; }
+
+/* ===========================================================
+   표: 캠페인 성과 (단순 + TOTAL)
+=========================================================== */
+function buildCampaignTable(tableId, rows, campCol){
+  if(!campCol) return '<div class="empty-state">Campaign 컬럼 매핑이 필요해요.</div>';
+  const groups = groupBy(rows, campCol);
+  const keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)').sort();
+  if(keys.length===0) return '<div class="empty-state">데이터가 없어요.</div>';
+  const hl = new Set(STATE.highlights[tableId]||[]);
+  let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  keys.forEach((k,ri)=>{
+    const a = aggregate(groups.get(k));
+    html += `<tr><td>${esc(k)}</td>${koCells(a).map((c,ci)=>`<td data-table="${tableId}" data-cell="${ri}-${ci}" class="${hl.has(ri+'-'+ci)?'hl':''}">${c}</td>`).join('')}</tr>`;
+  });
+  const tot = aggregate(keys.flatMap(k=>groups.get(k)));
+  html += `<tr class="total-row"><td>TOTAL</td>${koCells(tot).map(c=>`<td>${c}</td>`).join('')}</tr></tbody></table>`;
+  return html;
+}
+
+/* ===========================================================
+   표: 캠페인별 비교 (국가별 SUBTOTAL + 캠페인 + 전체 TOTAL) — Summary용
+=========================================================== */
+function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
+  if(!countryCol || !campCol) return '<div class="empty-state">Country/Campaign 컬럼 매핑이 필요해요.</div>';
+  const countryGroups = groupBy(rows, countryCol);
+  const countries = Array.from(countryGroups.keys()).filter(k=>k!=='(빈값)').sort();
+  if(countries.length===0) return '<div class="empty-state">데이터가 없어요.</div>';
+  let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  const hl = new Set(STATE.highlights[tableId]||[]);
+  let ri = 0;
+  countries.forEach(country=>{
+    const crows = countryGroups.get(country);
+    const campGroups = groupBy(crows, campCol);
+    const campKeys = Array.from(campGroups.keys()).filter(k=>k!=='(빈값)').sort();
+    campKeys.forEach(ck=>{
+      const a = aggregate(campGroups.get(ck));
+      html += `<tr><td>${esc(ck)}</td>${koCells(a).map((c,ci)=>{ const cell=ri+'-'+ci; ri++; return `<td data-table="${tableId}" data-cell="${cell}" class="${hl.has(cell)?'hl':''}">${c}</td>`; }).join('')}</tr>`;
+    });
+    const sub = aggregate(crows);
+    html += `<tr class="subtotal-row"><td>${esc(country)} SUBTOTAL</td>${koCells(sub).map(c=>`<td>${c}</td>`).join('')}</tr>`;
+  });
+  const grand = aggregate(rows);
+  html += `<tr class="total-row"><td>TOTAL</td>${koCells(grand).map(c=>`<td>${c}</td>`).join('')}</tr></tbody></table>`;
+  return html;
+}
+
+/* ===========================================================
+   표: 미디어믹스 대비 성과 비교 (미디어믹스 / 실집행 / 증감)
+=========================================================== */
+function buildMediaMixTable(rows, target){
+  const t = target || {budget:0,impression:0,click:0,view:0};
+  const tSpent = Number(t.budget)||0, tImp = Number(t.impression)||0, tClick = Number(t.click)||0, tView = Number(t.view)||0;
+  const targetAgg = {
+    spent:tSpent, impression:tImp, click:tClick, view:tView,
+    ctr:safeDiv(tClick,tImp), cpc:safeDiv(tSpent,tClick), cpm:safeDiv(tSpent,tImp)*1000,
+    vtr:safeDiv(tView,tImp), cpv:safeDiv(tSpent,tView)
+  };
+  const actual = aggregate(rows);
+  const pct = (a,b)=> b ? (a-b)/b : (a?1:0);
+  const deltaRow = ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>{
+    if(k==='ctr'||k==='vtr'){ const d=(actual[k]-targetAgg[k]); return (d>=0?'+':'')+(d*100).toFixed(2)+'%p'; }
+    const d = pct(actual[k], targetAgg[k]);
+    return (d>=0?'+':'')+Math.round(d*100)+'%';
+  });
+  if(!tSpent && !tImp && !tClick && !tView){
+    return `<div class="empty-state">설정에서 미디어믹스(Target) 값을 입력하면 이 표가 채워져요.<br><br>` +
+      `<table style="margin-top:8px;"><thead><tr><th>구분</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>` +
+      `<tr class="actual-row"><td>실집행</td>${koCells(actual).map(c=>`<td>${c}</td>`).join('')}</tr></tbody></table></div>`;
+  }
+  return `<table><thead><tr><th>구분</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+    <tr class="target-row"><td>미디어믹스</td>${koCells(targetAgg).map(c=>`<td>${c}</td>`).join('')}</tr>
+    <tr class="actual-row"><td>실집행</td>${koCells(actual).map(c=>`<td>${c}</td>`).join('')}</tr>
+    <tr class="delta-row"><td>증감</td>${deltaRow.map(c=>`<td>${c}</td>`).join('')}</tr>
+    </tbody></table>`;
+}
+
+/* ===========================================================
+   표: Smart+/Advantage 적용 전후 비교
+=========================================================== */
+function buildBeforeAfterTable(rows, cutoffDate){
+  if(!cutoffDate) return null;
+  const cutoff = new Date(cutoffDate);
+  const before = rows.filter(r=>{ const d=getDate(r); return d && d < cutoff; });
+  const after = rows.filter(r=>{ const d=getDate(r); return d && d >= cutoff; });
+  if(before.length===0 && after.length===0) return null;
+  const a1 = aggregate(before), a2 = aggregate(after);
+  const pct = (a,b)=> b?(a-b)/b:(a?1:0);
+  const deltaRow = ['spent','impression','click','cpm','cpc','ctr','view','vtr','cpv'].map(k=>{
+    if(k==='ctr'||k==='vtr'){ const d=(a2[k]-a1[k]); return (d>=0?'+':'')+(d*100).toFixed(2)+'%p'; }
+    const d = pct(a2[k],a1[k]); return (d>=0?'+':'')+Math.round(d*100)+'%';
+  });
+  return `<table><thead><tr><th>구분</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+    <tr><td>적용 전 (~${esc(cutoffDate)})</td>${koCells(a1).map(c=>`<td>${c}</td>`).join('')}</tr>
+    <tr><td>적용 후 (${esc(cutoffDate)}~)</td>${koCells(a2).map(c=>`<td>${c}</td>`).join('')}</tr>
+    <tr class="delta-row"><td>증감</td>${deltaRow.map(c=>`<td>${c}</td>`).join('')}</tr>
+    </tbody></table>`;
+}
+
+/* ===========================================================
+   표: 클릭 강조 토글
+=========================================================== */
+document.addEventListener('click', e=>{
+  const td = e.target.closest('td[data-cell]');
+  if(!td) return;
+  const tableId = td.dataset.table, cell = td.dataset.cell;
+  if(!STATE.highlights[tableId]) STATE.highlights[tableId] = [];
+  const arr = STATE.highlights[tableId];
+  const pos = arr.indexOf(cell);
+  if(pos===-1){ arr.push(cell); td.classList.add('hl'); }
+  else{ arr.splice(pos,1); td.classList.remove('hl'); }
+});
+
+/* ===========================================================
+   리치 텍스트 코멘트 에디터
+=========================================================== */
+function buildCommentEditor(key, placeholder){
+  const html = STATE.comments[key] || '';
+  return `
+  <div class="editor-toolbar">
+    <button type="button" data-cmd="bold" title="굵게"><b>B</b></button>
+    <select data-cmd="fontSize" title="글씨 크기">
+      <option value="2">작게</option><option value="3" selected>보통</option>
+      <option value="5">크게</option><option value="7">아주 크게</option>
+    </select>
+  </div>
+  <div class="comment-box" contenteditable="true" data-comment-key="${key}" data-placeholder="${esc(placeholder||'코멘트를 입력하세요...')}">${html}</div>`;
+}
+document.addEventListener('click', e=>{
+  const btn = e.target.closest('.editor-toolbar button');
+  if(!btn) return;
+  const box = btn.closest('.card').querySelector('.comment-box');
+  box.focus(); document.execCommand(btn.dataset.cmd,false,null);
+});
+document.addEventListener('change', e=>{
+  const sel = e.target.closest('.editor-toolbar select[data-cmd="fontSize"]');
+  if(!sel) return;
+  const box = sel.closest('.card').querySelector('.comment-box');
+  box.focus(); document.execCommand('fontSize', false, sel.value);
+});
+document.addEventListener('input', e=>{
+  const box = e.target.closest('.comment-box[data-comment-key]');
+  if(!box) return;
+  STATE.comments[box.dataset.commentKey] = box.innerHTML;
+});
+
+/* ===========================================================
+   표 제목 편집
+=========================================================== */
+function titleFor(tableId, def){ return STATE.tableTitles[tableId] || def; }
+function editableTitle(tableId, def, hint){
+  return `<h2 contenteditable="true" data-title-key="${tableId}">${esc(titleFor(tableId,def))}</h2>${hint?`<span class="hint">${hint}</span>`:''}`;
+}
+document.addEventListener('blur', e=>{
+  const h = e.target.closest && e.target.closest('h2[data-title-key]');
+  if(!h) return;
+  STATE.tableTitles[h.dataset.titleKey] = h.textContent.trim();
+}, true);
+
+/* ===========================================================
+   인플루언서 카드 그리드 (이름 자동/편집 + 이미지)
+=========================================================== */
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxW=400; const scale=Math.min(1,maxW/img.width);
+        const canvas=document.createElement('canvas');
+        canvas.width=img.width*scale; canvas.height=img.height*scale;
+        const ctx=canvas.getContext('2d'); ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.7));
+      };
+      img.onerror=reject; img.src=ev.target.result;
+    };
+    reader.onerror=reject; reader.readAsDataURL(file);
+  });
+}
+async function setSlotImage(slotKey, file){
+  const dataUrl = await compressImage(file);
+  const imgKey = 'img_'+slotKey.replace(/[^a-zA-Z0-9]/g,'_')+'_'+Date.now();
+  imageCache[imgKey] = dataUrl;
+  STATE.images[slotKey] = imgKey;
+  if(CONFIG.appsScriptUrl) fetch(CONFIG.appsScriptUrl, {method:'POST', body:JSON.stringify({action:'saveImage', key:imgKey, data:dataUrl})}).catch(()=>{});
+  renderCurrentTab();
+}
+function buildImgSlot(slotKey){
+  const imgKey = STATE.images[slotKey];
+  const cached = imgKey ? imageCache[imgKey] : null;
+  return `<div class="img-slot" data-slot="${esc(slotKey)}">
+    ${cached ? `<img src="${cached}"><button class="remove-btn" data-remove-slot="${esc(slotKey)}">✕</button>` : `<div class="placeholder">📷<br>클릭/붙여넣기/드래그</div>`}
+    <input type="file" accept="image/*" data-file-slot="${esc(slotKey)}">
+  </div>`;
+}
+document.addEventListener('click', e=>{
+  const slot = e.target.closest('.img-slot');
+  if(!slot || e.target.closest('.remove-btn')) return;
+  slot.querySelector('input[type=file]').click();
+});
+document.addEventListener('click', e=>{
+  const rm = e.target.closest('[data-remove-slot]'); if(!rm) return;
+  e.stopPropagation(); delete STATE.images[rm.dataset.removeSlot]; renderCurrentTab();
+});
+document.addEventListener('change', e=>{
+  const input = e.target.closest('input[data-file-slot]');
+  if(!input || !input.files[0]) return;
+  setSlotImage(input.dataset.fileSlot, input.files[0]);
+});
+document.addEventListener('dragover', e=>{ const s=e.target.closest('.img-slot'); if(s){ e.preventDefault(); s.classList.add('dragover'); } });
+document.addEventListener('dragleave', e=>{ const s=e.target.closest('.img-slot'); if(s) s.classList.remove('dragover'); });
+document.addEventListener('drop', e=>{
+  const s = e.target.closest('.img-slot'); if(!s) return;
+  e.preventDefault(); s.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if(file && file.type.startsWith('image/')) setSlotImage(s.dataset.slot, file);
+});
+document.addEventListener('paste', e=>{
+  const hovered = document.querySelector('.img-slot:hover');
+  const items = e.clipboardData && e.clipboardData.items; if(!items || !hovered) return;
+  for(const item of items){ if(item.type.startsWith('image/')){ const file=item.getAsFile(); if(file){ setSlotImage(hovered.dataset.slot, file); e.preventDefault(); } } }
+});
+document.addEventListener('input', e=>{
+  const inp = e.target.closest('input[data-name-override]');
+  if(!inp) return;
+  STATE.nameOverrides[inp.dataset.nameOverride] = inp.value;
+});
+
+function buildInfluencerGrid(rows, opts){
+  // opts: { groupCol, labelCol, editable }
+  const groupCol = opts.groupCol;
+  if(!groupCol) return '<div class="empty-state">그룹 기준 컬럼 매핑이 필요해요.</div>';
+  const groups = groupBy(rows, groupCol);
+  const keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)');
+  if(keys.length===0) return '<div class="empty-state">해당 소재유형 데이터가 없어요.</div>';
+  const cards = keys.map(key=>{
+    const grp = groups.get(key);
+    const a = aggregate(grp);
+    const labelCol = opts.labelCol;
+    const rawLabel = labelCol ? (grp[0][labelCol] || key) : key;
+    const slotKey = opts.slotPrefix + '::' + key;
+    const overrideKey = opts.slotPrefix + '::name::' + key;
+    let nameHtml;
+    if(opts.editable){
+      const val = STATE.nameOverrides[overrideKey] !== undefined ? STATE.nameOverrides[overrideKey] : rawLabel;
+      nameHtml = `<input type="text" data-name-override="${esc(overrideKey)}" value="${esc(val)}" placeholder="이름 입력">`;
+    } else {
+      nameHtml = `<div class="readonly-name">${esc(rawLabel)}</div>`;
+    }
+    return `<div class="inf-card">
+      ${buildImgSlot(slotKey)}
+      <div class="inf-name">${nameHtml}</div>
+      <div class="inf-metrics">
+        <span>CTR</span><b>${fmtPct(a.ctr)}</b>
+        <span>CPC</span><b>${fmtInt(a.cpc)}</b>
+        <span>VTR</span><b>${fmtPct(a.vtr)}</b>
+        <span>CPV</span><b>${fmtInt(a.cpv)}</b>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="inf-grid">${cards}</div>`;
+}
+
+/* ===========================================================
+   차트 (시작/종료 마커 포함)
+=========================================================== */
+function chartsAvailable(){ return typeof Chart !== 'undefined'; }
+function showChartFallback(canvas,msg){ if(!canvas) return; canvas.parentElement.innerHTML = `<div class="empty-state">${esc(msg)}</div>`; }
+const MARK_START_COLOR='#0F1E3D', MARK_END_COLOR='#9CA3AF';
+function drawPill(ctx,x,y,text,bg,align){
+  ctx.font='10px Pretendard, sans-serif';
+  const padX=6,h=16; const textW=ctx.measureText(text).width; const w=textW+padX*2;
+  const bx = align==='right'?x-w:x; const r=3;
+  ctx.beginPath(); ctx.moveTo(bx+r,y); ctx.arcTo(bx+w,y,bx+w,y+h,r); ctx.arcTo(bx+w,y+h,bx,y+h,r); ctx.arcTo(bx,y+h,bx,y,r); ctx.arcTo(bx,y,bx+w,y,r); ctx.closePath();
+  ctx.fillStyle=bg; ctx.fill();
+  ctx.fillStyle='#fff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(text,bx+padX,y+h/2);
+  return h;
+}
+const markerLinePlugin = {
+  id:'markerLines',
+  afterDraw(chart){
+    const opts = chart.options.plugins && chart.options.plugins.markerLines;
+    if(!opts || !opts.markers || !opts.markers.length) return;
+    const {ctx, chartArea} = chart;
+    const meta = chart.getDatasetMeta(0);
+    if(!meta || !meta.data) return;
+    ctx.save(); ctx.font='10px Pretendard, sans-serif';
+    const byIndex = new Map();
+    opts.markers.forEach(m=>{ if(!byIndex.has(m.index)) byIndex.set(m.index,[]); byIndex.get(m.index).push(m); });
+    const indexX = new Map();
+    byIndex.forEach((_,index)=>{ const p=meta.data[index]; if(p) indexX.set(index,p.x); });
+    byIndex.forEach((entries,index)=>{
+      const x=indexX.get(index); if(x===undefined||!isFinite(x)||x<chartArea.left||x>chartArea.right) return;
+      const hasStart = entries.some(e=>e.kind==='시작');
+      ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle=hasStart?MARK_START_COLOR:MARK_END_COLOR; ctx.lineWidth=1;
+      ctx.moveTo(x,chartArea.top); ctx.lineTo(x,chartArea.bottom); ctx.stroke(); ctx.setLineDash([]);
+    });
+    let boxes=[];
+    byIndex.forEach((entries,index)=>{
+      const x=indexX.get(index); if(x===undefined||!isFinite(x)||x<chartArea.left||x>chartArea.right) return;
+      entries.forEach(e=>{
+        const text=`${e.name} ${e.kind}`; const w=ctx.measureText(text).width+12;
+        const overflowsRight=(x+4+w)>chartArea.right; const align=overflowsRight?'right':'left';
+        const left = align==='right'?x-4-w:x+4;
+        boxes.push({x,text,color:e.kind==='시작'?MARK_START_COLOR:MARK_END_COLOR,w,align,left,right:left+w});
+      });
+    });
+    boxes.sort((a,b)=>a.left-b.left);
+    const laneRightEdge=[]; const boxH=16, gap=3, hGap=4;
+    boxes.forEach(b=>{
+      let lane = laneRightEdge.findIndex(edge=>b.left>edge+hGap);
+      if(lane===-1){ lane=laneRightEdge.length; laneRightEdge.push(-Infinity); }
+      laneRightEdge[lane]=b.right; b.lane=lane;
+    });
+    boxes.forEach(b=>{ const y=chartArea.top+4+b.lane*(boxH+gap); drawPill(ctx,b.align==='right'?b.x-4:b.x+4,y,b.text,b.color,b.align); });
+    ctx.restore();
+  }
+};
+try{ if(typeof Chart!=='undefined') Chart.register(markerLinePlugin); }catch(e){}
+
+function computeGroupRuns(rows, primaryCol, secondaryCol, maxGroups){
+  maxGroups = maxGroups||6;
+  if(!primaryCol) return [];
+  const primaryGroups = groupBy(rows, primaryCol);
+  let runs=[];
+  primaryGroups.forEach((grp,pname)=>{
+    if(!pname||pname==='(빈값)') return;
+    if(secondaryCol){
+      const subGroups = groupBy(grp, secondaryCol);
+      const subKeys = Array.from(subGroups.keys()).filter(k=>k&&k!=='(빈값)');
+      const multiple = subKeys.length>1;
+      subKeys.forEach(skey=>{
+        const subRows = subGroups.get(skey);
+        const dates = subRows.map(getDate).filter(Boolean).map(toDateInput).sort();
+        if(dates.length===0) return;
+        runs.push({ name: multiple?`${pname} (${skey})`:pname, start:dates[0], end:dates[dates.length-1], spend: aggregate(subRows).spent });
+      });
+    } else {
+      const dates = grp.map(getDate).filter(Boolean).map(toDateInput).sort();
+      if(dates.length===0) return;
+      runs.push({ name:pname, start:dates[0], end:dates[dates.length-1], spend: aggregate(grp).spent });
+    }
+  });
+  runs.sort((a,b)=>b.spend-a.spend);
+  return runs.slice(0,maxGroups);
+}
+function buildMarkerOpts(runs, days){
+  if(runs.length===0||days.length===0) return [];
+  const globalLast = days[days.length-1];
+  const markers=[];
+  runs.forEach(r=>{
+    const si=days.indexOf(r.start), ei=days.indexOf(r.end);
+    if(si>=0) markers.push({index:si, name:r.name, kind:'시작'});
+    if(ei>=0 && ei!==si && r.end!==globalLast) markers.push({index:ei, name:r.name, kind:'종료'});
+  });
+  return markers;
+}
+function renderTrendChart(canvasId, chartKey, rows, primaryMarkerCol, fallbackMarkerCol){
+  try{
+    const canvas = document.getElementById(canvasId);
+    if(!canvas) return;
+    if(!chartsAvailable()){ showChartFallback(canvas,'차트 라이브러리를 불러오지 못했습니다.'); return; }
+    const dayMap = groupBy(rows, r=>{ const d=getDate(r); return d?toDateInput(d):'?'; });
+    const days = Array.from(dayMap.keys()).filter(k=>k!=='?').sort();
+    if(days.length===0){ showChartFallback(canvas,'표시할 일자별 데이터가 없어요.'); return; }
+    const spend = days.map(d=>aggregate(dayMap.get(d)).spent);
+    const ctr = days.map(d=>aggregate(dayMap.get(d)).ctr*100);
+    const vtr = days.map(d=>aggregate(dayMap.get(d)).vtr*100);
+    let runs = computeGroupRuns(rows, primaryMarkerCol, null);
+    if(runs.length===0 && fallbackMarkerCol && fallbackMarkerCol!==primaryMarkerCol) runs = computeGroupRuns(rows, fallbackMarkerCol, null);
+    const markers = buildMarkerOpts(runs, days);
+    if(charts[chartKey]) charts[chartKey].destroy();
+    charts[chartKey] = new Chart(canvas, {
+      data:{ labels:days, datasets:[
+        { type:'bar', label:'Spend (₩)', data:spend, backgroundColor:'rgba(15,30,61,0.55)', yAxisID:'y', order:2 },
+        { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 },
+        { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 }
+      ]},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}}, markerLines:{markers} },
+        scales:{ y:{position:'left',ticks:{callback:v=>fmtWon(v)},title:{display:true,text:'Spend (₩)',font:{size:10}}},
+                 y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'CTR / VTR',font:{size:10}}} }
+      }
+    });
+  }catch(e){ console.error('renderTrendChart error', e); }
+}
+
+/* ===========================================================
+   탭 구성
+=========================================================== */
+let currentTab = 'summary';
+function uniqueCountries(){ const col=CONFIG.fieldMap.country; return col?uniqueVals(RAWROWS,col):[]; }
+
+function rebuildTabBar(){
+  const bar = document.getElementById('tabBar');
+  const countries = uniqueCountries();
+  bar.innerHTML = `<button class="tab-btn ${currentTab==='summary'?'active':''}" data-tab="summary">Summary</button>` +
+    countries.map(c=>`<button class="tab-btn ${currentTab===c?'active':''}" data-tab="${esc(c)}">${esc(c)}</button>`).join('');
+  bar.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ currentTab=btn.dataset.tab; rebuildTabBar(); renderCurrentTab(); });
+  });
+}
+
+function sectionHead(tableId, def, hint){
+  return `<div class="card-head">${editableTitle(tableId, def, hint)}</div>`;
+}
+
+function renderSummaryTab(){
+  const rows = baseRows();
+  const brandCol=CONFIG.fieldMap.brand, countryCol=CONFIG.fieldMap.country, campaignCol=CONFIG.fieldMap.campaign, mediaCol=CONFIG.fieldMap.media;
+  const a = aggregate(rows);
+
+  let html = `<div class="card">
+    ${sectionHead('sum-overview-title','캠페인 개요')}
+    <div class="stat-line">총 광고비 ${fmtWon(a.spent)}, 총 유입 ${fmtInt(a.click)}회, CTR ${fmtPct(a.ctr)}, VTR ${fmtPct(a.vtr)}</div>
+  </div>`;
+
+  html += `<div class="card">${sectionHead('sum-country-comment','국가별 코멘트')}${buildCommentEditor('sum-country-comment','국가별 성과 코멘트를 입력하세요')}</div>`;
+
+  html += `<div class="card">${sectionHead('sum-campaign-table','# 캠페인별 비교')}
+    <div class="table-wrap">${buildCountryGroupedCampaignTable('sum-campaign-table', rows, countryCol, campaignCol)}</div></div>`;
+
+  html += `<div class="card">${sectionHead('sum-mix-table','# 미디어믹스 대비 성과 비교')}
+    <div class="table-wrap">${buildMediaMixTable(rows, STATE.targets.summary)}</div></div>`;
+
+  html += `<div class="card">${sectionHead('sum-media-comment','매체별 코멘트')}${buildCommentEditor('sum-media-comment','Meta/TikTok 매체별 코멘트를 입력하세요')}</div>`;
+
+  if(mediaCol){
+    uniqueVals(rows, mediaCol).forEach(media=>{
+      const mrows = rows.filter(r=>String(r[mediaCol])===media);
+      const tid = 'sum-media-'+media.replace(/[^a-zA-Z0-9]/g,'_');
+      html += `<div class="card">${sectionHead(tid,'# '+media)}
+        <div class="table-wrap">${buildCampaignTable(tid, mrows, campaignCol)}</div></div>`;
+    });
+  }
+
+  html += `<div class="card">${sectionHead('sum-timeline-comment','집행 기간에 따른 성과 추이')}${buildCommentEditor('sum-timeline-comment','초기/중반/후반 구간별 코멘트를 입력하세요')}</div>`;
+
+  html += `<div class="card">${sectionHead('sum-trend-chart','일자별 Spend · CTR · VTR 추이','시작/종료 = Campaign 기준')}
+    <div class="chart-wrap"><canvas id="summaryTrendChart"></canvas></div></div>`;
+
+  document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
+  renderTrendChart('summaryTrendChart','summaryTrend', rows, campaignCol, countryCol);
+}
+
+function renderCountryTab(country){
+  const countryCol=CONFIG.fieldMap.country, mediaCol=CONFIG.fieldMap.media, brandCol=CONFIG.fieldMap.brand;
+  const campaignCol=CONFIG.fieldMap.campaign, ctCol=CONFIG.fieldMap.creativeType, infCol=CONFIG.fieldMap.influencer, adCol=CONFIG.fieldMap.ad;
+  const rows = baseRows().filter(r => countryCol && String(r[countryCol])===country);
+  const cKey = country.replace(/[^a-zA-Z0-9]/g,'_');
+  const a = aggregate(rows);
+  const targetC = STATE.targets.country[country] || {};
+  const optD = STATE.optDates[country] || {};
+
+  let html = `<div class="card">
+    ${sectionHead('c-'+cKey+'-overview','캠페인 개요')}
+    <div class="stat-line">광고비 ${fmtWon(a.spent)}, 유입 ${fmtInt(a.click)}회, CTR ${fmtPct(a.ctr)}, CPC ${fmtInt(a.cpc)}원</div>
+  </div>`;
+
+  html += `<div class="card">${sectionHead('c-'+cKey+'-comment', country+' 코멘트')}${buildCommentEditor(country+'-comment', country+' 성과 코멘트를 입력하세요')}</div>`;
+
+  html += `<div class="card">${sectionHead('c-'+cKey+'-campaign','# 캠페인 성과')}
+    <div class="table-wrap">${buildCampaignTable('c-'+cKey+'-campaign', rows, campaignCol)}</div></div>`;
+
+  if(mediaCol){
+    const medias = uniqueVals(rows, mediaCol);
+    medias.forEach(media=>{
+      const mrows = rows.filter(r=>String(r[mediaCol])===media);
+      const cutoff = optD[media.toLowerCase()];
+      if(cutoff){
+        const bat = buildBeforeAfterTable(mrows, cutoff);
+        if(bat){
+          html += `<div class="card">${sectionHead('c-'+cKey+'-opt-'+media,'# '+media+' Smart+/Advantage 적용 전후 비교 ('+cutoff+' 적용)')}
+            <div class="table-wrap">${bat}</div></div>`;
+        }
+      }
+    });
+  }
+
+  html += `<div class="card">${sectionHead('c-'+cKey+'-mix-comment','믹스 대비 성과 비교 코멘트')}${buildCommentEditor(country+'-mix-comment','미디어/캠페인 믹스 대비 코멘트를 입력하세요')}</div>`;
+
+  if(mediaCol){
+    uniqueVals(rows, mediaCol).forEach(media=>{
+      const mrows = rows.filter(r=>String(r[mediaCol])===media);
+      const tid = 'c-'+cKey+'-mix-'+media.replace(/[^a-zA-Z0-9]/g,'_');
+      const t = targetC[media.toLowerCase()];
+      html += `<div class="card">${sectionHead(tid,'# '+media)}
+        <div class="table-wrap">${buildMediaMixTable(mrows, t)}</div></div>`;
+    });
+  }
+
+  html += `<div class="card">${sectionHead('c-'+cKey+'-brand-comment','브랜드 성과 비교 코멘트')}${buildCommentEditor(country+'-brand-comment','브랜드별 성과 코멘트를 입력하세요')}</div>`;
+  html += `<div class="card">${sectionHead('c-'+cKey+'-brand-table','# 브랜드 성과 비교')}
+    <div class="table-wrap">${buildCampaignTable('c-'+cKey+'-brand-table', rows, brandCol)}</div></div>`;
+
+  html += `<div class="card">${sectionHead('c-'+cKey+'-creative-comment','소재별 성과비교 코멘트')}${buildCommentEditor(country+'-creative-comment','소재별 성과 코멘트를 입력하세요')}</div>`;
+
+  if(ctCol){
+    const manualRows = rows.filter(r => String(r[ctCol])!=='Spark Ads' && String(r[ctCol])!=='Partnership Ads');
+    if(manualRows.length){
+      html += `<div class="card">${sectionHead('c-'+cKey+'-inf-manual','# Meta 소재 (인플루언서별)')}
+        ${buildInfluencerGrid(manualRows, {groupCol: infCol||adCol, labelCol: infCol||adCol, editable:false, slotPrefix:'c-'+cKey+'-manual'})}</div>`;
+    }
+    const partnershipRows = rows.filter(r => String(r[ctCol])==='Partnership Ads');
+    if(partnershipRows.length){
+      html += `<div class="card">${sectionHead('c-'+cKey+'-inf-partnership','# Partnership Ads')}
+        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, editable:true, slotPrefix:'c-'+cKey+'-partnership'})}</div>`;
+    }
+    const sparkRows = rows.filter(r => String(r[ctCol])==='Spark Ads');
+    if(sparkRows.length){
+      html += `<div class="card">${sectionHead('c-'+cKey+'-inf-spark','# TikTok Spark Ads')}
+        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, editable:true, slotPrefix:'c-'+cKey+'-spark'})}</div>`;
+    }
+  }
+
+  document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
+}
+
+function renderCurrentTab(){
+  if(RAWROWS.length===0){
+    document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active"><div class="empty-state">데이터가 없어요. Sync를 눌러주세요.</div></div>`;
+    return;
+  }
+  if(currentTab==='summary') renderSummaryTab();
+  else renderCountryTab(currentTab);
+}
+
+/* ===========================================================
+   Apps Script 연동
+=========================================================== */
+function showBanner(msg,type){
+  const b=document.getElementById('banner');
+  b.textContent=msg; b.className='banner show '+(type||'');
+  clearTimeout(showBanner._t); showBanner._t=setTimeout(()=>b.classList.remove('show'),6000);
+}
+async function loadStateFromServer(){
+  if(!CONFIG.appsScriptUrl){ showBanner('Apps Script URL이 설정되지 않아 이 브라우저에서만 임시로 작업돼요.','error'); return; }
+  try{
+    const res = await fetch(CONFIG.appsScriptUrl+'?action=getState');
+    const json = await res.json();
+    if(json.ok){
+      STATE = Object.assign(STATE, JSON.parse(json.state||'{}'));
+      ensureStateShape();
+      await loadImagesFromServer();
+      showBanner('공유된 최신 상태를 불러왔어요.','ok');
+    }
+  }catch(e){ showBanner('상태 불러오기 실패: '+e.message,'error'); }
+}
+async function loadImagesFromServer(){
+  if(!CONFIG.appsScriptUrl) return;
+  try{ const res=await fetch(CONFIG.appsScriptUrl+'?action=getImages'); const json=await res.json(); if(json.ok) Object.assign(imageCache, json.images); }
+  catch(e){ console.warn('이미지 로드 실패', e); }
+}
+async function saveStateToServer(){
+  if(!CONFIG.appsScriptUrl){ showBanner('Apps Script URL을 먼저 설정해주세요.','error'); return; }
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin">☁️</span> 저장 중...';
+  try{
+    await fetch(CONFIG.appsScriptUrl, {method:'POST', body:JSON.stringify({action:'saveState', state:STATE})});
+    showBanner('저장했어요. 이 링크를 열면 다른 사람도 같은 내용을 볼 수 있어요.','ok');
+  }catch(e){ showBanner('저장 실패: '+e.message,'error'); }
+  finally{ btn.disabled=false; btn.innerHTML='☁️ 저장'; }
+}
+
+/* ===========================================================
+   CSV 동기화
+=========================================================== */
+async function fetchCsv(url){
+  const res = await fetch(url, {cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const text = await res.text();
+  if(text.trim().slice(0,15).toLowerCase().includes('<!doctype')) throw new Error('CSV가 아니라 HTML이 반환됐어요.');
+  return Papa.parse(text, {header:true, skipEmptyLines:true});
+}
+function guessMapping(headers){
+  const guesses = {
+    date:['date','일자','날짜'], brand:['brand','브랜드'], country:['country','국가'], media:['media','매체'],
+    objective:['objective','목적'], creativeType:['creative type','creative','소재유형'],
+    influencer:['influencer','creator','인플루언서','크리에이터'], campaign:['campaign','캠페인'],
+    ad:['ad','광고'],
+    spent:['spent','spend','지출'], impression:['impression','imps','노출'], click:['click','클릭'], view:['view','조회']
+  };
+  const map = {...CONFIG.fieldMap};
+  Object.entries(guesses).forEach(([key,patterns])=>{
+    if(map[key]) return;
+    const found = headers.find(h=>patterns.some(p=>h.toLowerCase().trim()===p));
+    if(found) map[key]=found;
+  });
+  return map;
+}
+function populateExcludeSelect(){
+  const campCol = CONFIG.fieldMap.campaign;
+  const sel = document.getElementById('excludeSelect');
+  if(!campCol){ sel.innerHTML='<option value="">캠페인 컬럼 매핑 필요</option>'; return; }
+  const camps = uniqueVals(RAWROWS, campCol);
+  sel.innerHTML = '<option value="">-- 캠페인 선택 --</option>'+camps.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+}
+function renderExcludedTags(){
+  document.getElementById('excludedTags').innerHTML = STATE.excludedCampaigns.map(c=>
+    `<span class="excluded-tag">${esc(c)}<button data-unexclude="${esc(c)}">✕</button></span>`).join('');
+}
+document.getElementById('excludeSelect').addEventListener('change', e=>{
+  const v=e.target.value; if(!v) return;
+  if(!STATE.excludedCampaigns.includes(v)) STATE.excludedCampaigns.push(v);
+  e.target.value=''; renderExcludedTags();
+});
+document.addEventListener('click', e=>{
+  const btn=e.target.closest('[data-unexclude]'); if(!btn) return;
+  STATE.excludedCampaigns = STATE.excludedCampaigns.filter(c=>c!==btn.dataset.unexclude);
+  renderExcludedTags();
+});
+
+async function syncData(){
+  const btn=document.getElementById('syncBtn');
+  if(!CONFIG.csvUrl){ openSettings(); return; }
+  btn.disabled=true; btn.innerHTML='<span class="spin">⟲</span>';
+  try{
+    const parsed = await fetchCsv(CONFIG.csvUrl);
+    RAWROWS = parsed.data.filter(r=>Object.values(r).some(v=>v!==''&&v!==null&&v!==undefined));
+    RAWHEADERS = parsed.meta.fields||[];
+    const coreKeys = ['date','brand','country','media','creativeType','campaign','spent','impression','click','view'];
+    if(coreKeys.some(k=>!CONFIG.fieldMap[k]) && RAWHEADERS.length){ CONFIG.fieldMap = guessMapping(RAWHEADERS); saveJSON(LS.config, CONFIG); }
+    populateExcludeSelect();
+    rebuildTabBar();
+    renderCurrentTab();
+    document.getElementById('statusLabel').textContent = new Date().toLocaleString('ko-KR')+' · '+RAWROWS.length.toLocaleString()+'행';
+    showBanner('동기화 완료 ('+RAWROWS.length.toLocaleString()+'행)','ok');
+  }catch(e){ showBanner('동기화 실패: '+e.message,'error'); }
+  finally{ btn.disabled=false; btn.innerHTML='⟲ Sync'; }
+}
+document.getElementById('syncBtn').addEventListener('click', syncData);
+document.getElementById('saveBtn').addEventListener('click', saveStateToServer);
+document.getElementById('reloadStateBtn').addEventListener('click', async ()=>{ await loadStateFromServer(); renderCurrentTab(); });
+
+/* ===========================================================
+   설정 모달
+=========================================================== */
+const modal = document.getElementById('settingsModal');
+function openSettings(){
+  document.getElementById('cfg-csvUrl').value = CONFIG.csvUrl||'';
+  document.getElementById('cfg-appsScriptUrl').value = CONFIG.appsScriptUrl||'';
+  document.getElementById('cfg-rangeStart').value = STATE.dateRange.start||'';
+  document.getElementById('cfg-rangeEnd').value = STATE.dateRange.end||'';
+  const mapSection = document.getElementById('mappingSection');
+  if(RAWHEADERS.length){ buildMappingUI(RAWHEADERS); mapSection.style.display='block'; }
+  else mapSection.style.display='none';
+  buildTargetSummaryUI();
+  buildTargetCountryUI();
+  renderExcludedTags();
+  modal.classList.add('show');
+}
+function closeSettings(){ modal.classList.remove('show'); }
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('modalClose').addEventListener('click', closeSettings);
+document.getElementById('modalCancel').addEventListener('click', closeSettings);
+modal.addEventListener('click', e=>{ if(e.target===modal) closeSettings(); });
+
+function buildMappingUI(headers){
+  const grid = document.getElementById('mapGrid');
+  grid.innerHTML = REQUIRED_FIELDS.map(f=>{
+    const opts = ['<option value="">-- 선택 안함 --</option>'].concat(headers.map(h=>`<option value="${esc(h)}" ${CONFIG.fieldMap[f.key]===h?'selected':''}>${esc(h)}</option>`)).join('');
+    return `<div class="field"><label>${f.label}</label><select data-map="${f.key}">${opts}</select></div>`;
+  }).join('');
+}
+function buildTargetSummaryUI(){
+  const t = STATE.targets.summary;
+  document.getElementById('targetSummaryGrid').innerHTML = `
+    <div class="target-row-grid">
+      <div class="trg-label">Target</div>
+      <input type="number" placeholder="Budget" id="tsum-budget" value="${t.budget||0}">
+      <input type="number" placeholder="Impression" id="tsum-impression" value="${t.impression||0}">
+      <input type="number" placeholder="Click" id="tsum-click" value="${t.click||0}">
+      <input type="number" placeholder="View" id="tsum-view" value="${t.view||0}">
+    </div>`;
+}
+function buildTargetCountryUI(){
+  const countries = uniqueCountries();
+  const grid = document.getElementById('targetCountryGrid');
+  if(countries.length===0){ grid.innerHTML='<div class="desc">데이터 연결 후 국가가 표시됩니다.</div>'; return; }
+  const mediaCol = CONFIG.fieldMap.media;
+  grid.innerHTML = countries.map(country=>{
+    const cKey = country.replace(/[^a-zA-Z0-9]/g,'_');
+    const medias = mediaCol ? uniqueVals(RAWROWS.filter(r=>String(r[CONFIG.fieldMap.country])===country), mediaCol) : ['Meta','TikTok'];
+    const t = STATE.targets.country[country] || {};
+    const od = STATE.optDates[country] || {};
+    const mediaRows = medias.map(media=>{
+      const mk = media.toLowerCase();
+      const mt = t[mk] || {};
+      return `<div class="target-row-grid">
+        <div class="trg-label">${esc(media)}</div>
+        <input type="number" placeholder="Budget" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="budget" value="${mt.budget||0}">
+        <input type="number" placeholder="Imp" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="impression" value="${mt.impression||0}">
+        <input type="number" placeholder="Click" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="click" value="${mt.click||0}">
+        <input type="number" placeholder="View" data-t-country="${cKey}" data-t-media="${mk}" data-t-field="view" value="${mt.view||0}">
+      </div>
+      <div class="field" style="margin-top:-4px;"><label style="font-weight:500;">${esc(media)} 최적화 적용일 (선택)</label>
+        <input type="date" data-opt-country="${cKey}" data-opt-media="${mk}" value="${od[mk]||''}"></div>`;
+    }).join('');
+    return `<div style="border-top:1px dashed var(--border); padding-top:10px; margin-top:10px;">
+      <div style="font-weight:700; font-size:12.5px; margin-bottom:6px;">${esc(country)}</div>
+      ${mediaRows}
+    </div>`;
+  }).join('');
+}
+document.getElementById('testConnBtn').addEventListener('click', async ()=>{
+  const url = document.getElementById('cfg-csvUrl').value.trim();
+  const status = document.getElementById('connStatus');
+  if(!url){ status.textContent='URL을 입력해주세요.'; status.className='status-line show error'; return; }
+  status.textContent='연결 확인 중...'; status.className='status-line show';
+  try{
+    const parsed = await fetchCsv(url);
+    const headers = parsed.meta.fields||[];
+    RAWHEADERS = headers;
+    RAWROWS = parsed.data.filter(r=>Object.values(r).some(v=>v!==''&&v!==null&&v!==undefined));
+    CONFIG.fieldMap = guessMapping(headers);
+    buildMappingUI(headers);
+    document.getElementById('mappingSection').style.display='block';
+    buildTargetCountryUI();
+    status.innerHTML = `연결 성공 — 컬럼 ${headers.length}개, 행 ${RAWROWS.length.toLocaleString()}개`;
+    status.className='status-line show ok';
+  }catch(e){ status.textContent='연결 실패: '+e.message; status.className='status-line show error'; }
+});
+document.getElementById('modalSave').addEventListener('click', ()=>{
+  CONFIG.csvUrl = document.getElementById('cfg-csvUrl').value.trim();
+  CONFIG.appsScriptUrl = document.getElementById('cfg-appsScriptUrl').value.trim();
+  document.querySelectorAll('#mapGrid select').forEach(sel=>{ CONFIG.fieldMap[sel.dataset.map]=sel.value; });
+  saveJSON(LS.config, CONFIG);
+
+  STATE.dateRange.start = document.getElementById('cfg-rangeStart').value;
+  STATE.dateRange.end = document.getElementById('cfg-rangeEnd').value;
+
+  STATE.targets.summary = {
+    budget: Number(document.getElementById('tsum-budget').value)||0,
+    impression: Number(document.getElementById('tsum-impression').value)||0,
+    click: Number(document.getElementById('tsum-click').value)||0,
+    view: Number(document.getElementById('tsum-view').value)||0
+  };
+  document.querySelectorAll('[data-t-country]').forEach(inp=>{
+    const c = inp.dataset.tCountry, m = inp.dataset.tMedia, f = inp.dataset.tField;
+    const countryName = uniqueCountries().find(x=>x.replace(/[^a-zA-Z0-9]/g,'_')===c) || c;
+    if(!STATE.targets.country[countryName]) STATE.targets.country[countryName] = {};
+    if(!STATE.targets.country[countryName][m]) STATE.targets.country[countryName][m] = {};
+    STATE.targets.country[countryName][m][f] = Number(inp.value)||0;
+  });
+  document.querySelectorAll('[data-opt-country]').forEach(inp=>{
+    const c = inp.dataset.optCountry, m = inp.dataset.optMedia;
+    const countryName = uniqueCountries().find(x=>x.replace(/[^a-zA-Z0-9]/g,'_')===c) || c;
+    if(!STATE.optDates[countryName]) STATE.optDates[countryName] = {};
+    STATE.optDates[countryName][m] = inp.value;
+  });
+
+  closeSettings();
+  syncData();
+});
+
+/* ===========================================================
+   PDF 내보내기
+=========================================================== */
+document.getElementById('pdfBtn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('pdfBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spin">📄</span> 생성 중...';
+  try{
+    const target = document.querySelector('.tab-panel.active');
+    const canvas = await html2canvas(target, {scale:2, backgroundColor:'#ffffff'});
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageW = pdf.internal.pageSize.getWidth(), pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW, imgH = canvas.height*imgW/canvas.width;
+    let heightLeft = imgH, position = 0;
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    pdf.addImage(imgData,'JPEG',0,position,imgW,imgH); heightLeft -= pageH;
+    while(heightLeft > 0){ position = heightLeft - imgH; pdf.addPage(); pdf.addImage(imgData,'JPEG',0,position,imgW,imgH); heightLeft -= pageH; }
+    pdf.save(`월간리뷰_${currentTab}_${toDateInput(new Date())}.pdf`);
+  }catch(e){ showBanner('PDF 생성 실패: '+e.message,'error'); }
+  finally{ btn.disabled=false; btn.innerHTML='📄 PDF'; }
+});
+
+/* ===========================================================
+   초기화
+=========================================================== */
+(async function init(){
+  ensureStateShape();
+  await loadStateFromServer();
+  ensureStateShape();
+  if(!CONFIG.csvUrl){ openSettings(); }
+  else { await syncData(); }
+})();
+</script>
+</body>
+</html>
