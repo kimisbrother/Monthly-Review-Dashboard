@@ -35,7 +35,7 @@
   }
   button{font-family:inherit; cursor:pointer;}
   input,select,textarea{font-family:var(--font-sans);}
-  body::before{content:''; display:block; height:3px; width:100%; background:linear-gradient(90deg, var(--ap-gold) 0%, var(--ap-green-700) 55%, var(--ap-gold-light) 100%); position:sticky; top:0; z-index:50;}
+  .page-shell{max-width:1400px; margin:0 auto; padding:18px 20px 40px;}
   body.view-mode [contenteditable]{cursor:default;}
   body.view-mode .editor-toolbar{display:none !important;}
   body.view-mode .img-slot{cursor:default;}
@@ -45,25 +45,35 @@
   body.view-mode .inf-card:hover{transform:none; box-shadow:none;}
 
   .topbar{
-    position:sticky; top:3px; z-index:40;
+    position:sticky; top:14px; z-index:40; border-radius:26px; isolation:isolate;
     background:
-      radial-gradient(600px 220px at 85% -60%, rgba(199,162,92,0.20), transparent 60%),
-      linear-gradient(135deg, var(--ap-green-900) 0%, #123324 55%, var(--ap-green-700) 100%);
-    padding:28px 30px 24px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
-    box-shadow:0 10px 26px rgba(11,42,33,0.28);
+      radial-gradient(420px 260px at 12% 0%, rgba(234,217,175,0.16), transparent 55%),
+      radial-gradient(520px 320px at 92% 110%, rgba(199,162,92,0.22), transparent 60%),
+      linear-gradient(160deg, #0D3226 0%, var(--ap-green-900) 45%, #0A241C 100%);
+    padding:26px 30px 24px; display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap;
+    box-shadow:0 1px 0 rgba(255,255,255,0.06) inset, 0 16px 34px rgba(11,42,33,0.30), 0 2px 8px rgba(11,42,33,0.18);
+    border:1px solid rgba(234,217,175,0.22);
+    overflow:hidden;
   }
-  .topbar-title h1{font-size:29px; font-weight:800; margin:0; letter-spacing:-0.01em; color:#FBF7EC;}
-  .topbar-title h1::after{content:''; display:block; width:48px; height:3px; margin-top:11px; border-radius:2px; background:linear-gradient(90deg,var(--ap-gold),var(--ap-gold-light));}
-  .topbar-title .sub{font-size:13px; font-weight:600; color:var(--ap-gold-light); font-family:var(--font-mono); letter-spacing:0.02em; margin-top:10px;}
+  .topbar::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:-1;
+    background-image:repeating-linear-gradient(115deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 5px);
+    mix-blend-mode:overlay;
+  }
+  .kicker{font-size:10.5px; font-weight:700; color:var(--ap-gold-light); letter-spacing:0.22em; opacity:0.85; margin-bottom:8px;}
+  .topbar-title h1{font-size:27px; font-weight:700; margin:0; letter-spacing:-0.005em; color:#FBF7EC; font-family:var(--font-sans);}
+  .period{display:flex; align-items:baseline; gap:9px; margin-top:14px; padding-top:12px; border-top:1px solid rgba(234,217,175,0.22);}
+  .period-label{font-size:10.5px; font-weight:700; color:rgba(234,217,175,0.65); letter-spacing:0.1em;}
+  .period-value{font-size:13.5px; font-weight:600; color:var(--ap-gold-light); letter-spacing:0.01em;}
   .topbar-controls{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .gear-btn{
-    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,0.28);
-    background:rgba(255,255,255,0.08); color:#FBF7EC; font-size:16px; line-height:1;
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(234,217,175,0.3);
+    background:rgba(255,255,255,0.06); color:#FBF7EC; font-size:16px; line-height:1;
     display:flex; align-items:center; justify-content:center; padding:0;
     box-shadow:0 2px 8px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.12) inset;
     transition:transform .18s ease, background .18s ease;
   }
-  .gear-btn:hover{background:rgba(255,255,255,0.18); transform:rotate(35deg);}
+  .gear-btn:hover{background:rgba(255,255,255,0.16); transform:rotate(35deg);}
   .btn{
     display:inline-flex; align-items:center; gap:6px; border-radius:10px; border:1px solid var(--border);
     padding:8px 14px; font-size:12.5px; font-weight:600; color:var(--text);
@@ -82,16 +92,17 @@
   .spin{display:inline-block; animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
-  .banner{padding:9px 22px; font-size:13px; display:none; align-items:center; gap:8px; border-bottom:1px solid var(--border);}
+  .banner{padding:10px 16px; margin-top:12px; font-size:13px; display:none; align-items:center; gap:8px; border-radius:12px; border:1px solid var(--border);}
   .banner.show{display:flex;}
   .banner.error{background:var(--bad-tint); color:#8f2323;}
   .banner.ok{background:var(--good-tint); color:#0a5a3f;}
 
-  .tabs{display:flex; gap:4px; padding:10px 22px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto;}
-  .tab-btn{border:none; background:transparent; padding:9px 16px; font-size:13px; font-weight:600; color:var(--text-faint); white-space:nowrap; border-radius:9px; transition:all .15s ease;}
+  .tabs{display:flex; gap:2px; padding:9px 14px; margin-top:12px; background:var(--surface); border:1px solid var(--border); border-radius:18px; box-shadow:0 1px 2px rgba(11,42,33,0.03), 0 8px 18px rgba(11,42,33,0.05); overflow-x:auto;}
+  .tab-btn{position:relative; border:none; background:transparent; padding:10px 16px; font-size:13px; font-weight:600; color:var(--text-dim); white-space:nowrap; border-radius:10px; transition:all .15s ease;}
   .tab-btn:hover{background:var(--surface-2); color:var(--text);}
-  .tab-btn.active{color:#fff; background:linear-gradient(180deg, var(--ap-green-700) 0%, var(--ap-green-900) 100%); box-shadow:0 4px 12px rgba(11,42,33,0.3);}
-  .tab-panel{display:none; padding:22px; max-width:1400px; margin:0 auto;}
+  .tab-btn.active{color:var(--ap-green-900); background:var(--primary-tint); font-weight:700;}
+  .tab-btn.active::after{content:''; position:absolute; left:14px; right:14px; bottom:5px; height:2px; border-radius:2px; background:linear-gradient(90deg,var(--ap-green-700),var(--ap-gold));}
+  .tab-panel{display:none; padding:22px 0;}
   .tab-panel.active{display:block;}
 
   .card{position:relative; overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px 18px 18px; margin-bottom:20px; box-shadow:var(--shadow);}
@@ -183,10 +194,13 @@
 </head>
 <body>
 
+<div class="page-shell">
+
 <div class="topbar">
   <div class="topbar-title">
+    <div class="kicker">MONTHLY PERFORMANCE REPORT</div>
     <h1>월간 리뷰 대시보드</h1>
-    <div class="sub" id="dateRangeLabel">불러오는 중...</div>
+    <div class="period"><span class="period-label">리포트 기간</span><span class="period-value" id="dateRangeLabel">불러오는 중...</span></div>
   </div>
   <div class="topbar-controls">
     <button class="gear-btn" id="settingsBtn" title="설정" aria-label="설정">⚙</button>
@@ -200,6 +214,8 @@
 </div>
 
 <div id="tabPanels"></div>
+
+</div><!-- /page-shell -->
 
 <!-- ===================== SETTINGS MODAL ===================== -->
 <div class="modal-overlay" id="settingsModal">
