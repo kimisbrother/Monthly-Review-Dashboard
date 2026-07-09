@@ -167,8 +167,22 @@
   .img-slot .remove-btn{position:absolute; top:4px; right:4px; background:rgba(0,0,0,0.55); color:#fff; border:none; border-radius:50%; width:18px; height:18px; font-size:11px; z-index:3; display:none;}
   .img-slot:hover .remove-btn{display:block;}
   .img-slot input[type=file]{display:none;}
+  .img-slot.free{aspect-ratio:auto; min-height:120px; border:1.5px dashed var(--border); border-radius:10px;}
+  .img-slot.free img{position:static; width:100%; height:auto; max-height:560px; object-fit:contain;}
   .inf-name{padding:6px 8px 2px;}
   .inf-name .readonly-name{font-size:11.5px; font-weight:700; padding:2px 0;}
+
+  .lesson-block-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .lesson-block-tag{font-size:10.5px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--ap-gold-dark); background:#F5ECD8; padding:3px 9px; border-radius:20px;}
+  .lesson-block-controls{display:flex; gap:4px;}
+  .lesson-block-controls button{border:1px solid var(--border); background:var(--surface-2); border-radius:6px; width:26px; height:26px; font-size:11px; color:var(--text-dim); cursor:pointer;}
+  .lesson-block-controls button:disabled{opacity:.35; cursor:not-allowed;}
+  .lesson-block-controls button:hover:not(:disabled){background:var(--primary-tint); color:var(--ap-green-900);}
+  .lesson-caption{width:100%; border:none; border-top:1px solid var(--border); margin-top:8px; padding:8px 2px 0; font-size:12.5px; color:var(--text-dim); background:transparent; outline:none;}
+  .lesson-caption::placeholder{color:var(--text-faint);}
+  table.lesson-table td{min-width:90px;}
+  table.lesson-table td[contenteditable]{cursor:text;}
+  .lesson-add-bar{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding:18px 0 4px;}
 
   .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
   .chart-wrap{height:420px; position:relative;}
@@ -350,7 +364,7 @@ let STATE = {
   dateRange:{start:'',end:''}, excludedCampaigns:[], excludedAdGroups:[], tableTitles:{}, comments:{}, highlights:{},
   cardHighlights:{}, images:{},
   targets:{ summary:{budget:0,impression:0,click:0,landingView:0,view:0}, country:{} },
-  optDates:{}
+  optDates:{}, lessonBlocks:[]
 };
 let charts = {};
 const imageCache = {};
@@ -368,6 +382,7 @@ function ensureStateShape(){
   STATE.targets.summary = STATE.targets.summary || {budget:0,impression:0,click:0,landingView:0,view:0};
   STATE.targets.country = STATE.targets.country || {};
   STATE.optDates = STATE.optDates || {};
+  STATE.lessonBlocks = STATE.lessonBlocks || [];
 }
 
 /* ===========================================================
@@ -735,12 +750,12 @@ async function setSlotImage(slotKey, file){
   if(CONFIG.appsScriptUrl) fetch(CONFIG.appsScriptUrl, {method:'POST', body:JSON.stringify({action:'saveImage', key:imgKey, data:dataUrl})}).catch(()=>{});
   renderCurrentTab();
 }
-function buildImgSlot(slotKey, legacyKey){
+function buildImgSlot(slotKey, legacyKey, extraClass){
   // legacyKey: 이름 기준 공유 방식으로 바꾸기 전, 카드별로 저장했던 옛 키 — 예전에 올린 사진도 계속 보이게 함
   const imgKey = STATE.images[slotKey] || (legacyKey && STATE.images[legacyKey]);
   const cached = imgKey ? imageCache[imgKey] : null;
   const legacyAttr = legacyKey ? ` data-legacy-slot="${esc(legacyKey)}"` : '';
-  return `<div class="img-slot" data-slot="${esc(slotKey)}"${legacyAttr}>
+  return `<div class="img-slot ${extraClass||''}" data-slot="${esc(slotKey)}"${legacyAttr}>
     ${cached ? `<img src="${cached}"><button class="remove-btn" data-remove-slot="${esc(slotKey)}"${legacyAttr}>✕</button>` : `<div class="placeholder">📷<br>클릭/붙여넣기/드래그</div>`}
     <input type="file" accept="image/*" data-file-slot="${esc(slotKey)}">
   </div>`;
@@ -1010,11 +1025,13 @@ function buildCampaignLegend(){
 let currentTab = 'summary';
 function uniqueCountries(){ const col=CONFIG.fieldMap.country; return col?uniqueVals(RAWROWS,col):[]; }
 
+const LESSON_TAB_ID = '__lesson__';
 function rebuildTabBar(){
   const bar = document.getElementById('tabBar');
   const countries = countriesBySpend();
   bar.innerHTML = `<button class="tab-btn ${currentTab==='summary'?'active':''}" data-tab="summary">Summary</button>` +
-    countries.map(c=>`<button class="tab-btn ${currentTab===c?'active':''}" data-tab="${esc(c)}">${esc(c)}</button>`).join('');
+    countries.map(c=>`<button class="tab-btn ${currentTab===c?'active':''}" data-tab="${esc(c)}">${esc(c)}</button>`).join('') +
+    `<button class="tab-btn ${currentTab===LESSON_TAB_ID?'active':''}" data-tab="${LESSON_TAB_ID}">Lesson Learn</button>`;
   bar.querySelectorAll('.tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{ currentTab=btn.dataset.tab; rebuildTabBar(); renderCurrentTab(); });
   });
@@ -1166,6 +1183,118 @@ function renderCountryTab(country){
   document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
 }
 
+/* ===========================================================
+   Lesson Learn 탭 — 텍스트/이미지/표 블록을 자유롭게 추가
+=========================================================== */
+function newLessonBlockId(){ return 'lb_'+Date.now()+'_'+Math.floor(Math.random()*10000); }
+function findLessonBlock(id){ return STATE.lessonBlocks.find(b=>b.id===id); }
+
+function buildLessonImageBlock(b){
+  const img = buildImgSlot('lesson::img::'+b.id, null, 'free');
+  const caption = VIEW_MODE
+    ? (b.caption ? `<div class="lesson-caption" style="border-top:none; padding-top:6px;">${esc(b.caption)}</div>` : '')
+    : `<input type="text" class="lesson-caption" data-lesson-caption="${esc(b.id)}" placeholder="사진 설명(선택)" value="${esc(b.caption||'')}">`;
+  return `${img}${caption}`;
+}
+function buildLessonTableBlock(b){
+  if(!b.rows || !b.rows.length) b.rows = [['',''],['','']];
+  const rowsHtml = b.rows.map((row,ri)=>`<tr>${row.map((cell,ci)=>
+    `<td${VIEW_MODE?'':' contenteditable="true"'} data-lesson-cell="${esc(b.id)}" data-r="${ri}" data-c="${ci}">${esc(cell)}</td>`
+  ).join('')}</tr>`).join('');
+  const controls = VIEW_MODE ? '' : `<div style="display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;">
+    <button class="btn" data-table-op="addRow" data-block-id="${esc(b.id)}">+ 행</button>
+    <button class="btn" data-table-op="addCol" data-block-id="${esc(b.id)}">+ 열</button>
+    <button class="btn" data-table-op="delRow" data-block-id="${esc(b.id)}">- 행</button>
+    <button class="btn" data-table-op="delCol" data-block-id="${esc(b.id)}">- 열</button>
+  </div>`;
+  return `<div class="table-wrap"><table class="lesson-table"><tbody>${rowsHtml}</tbody></table></div>${controls}`;
+}
+function buildLessonBlock(b, index, total){
+  const typeLabel = {text:'텍스트', image:'이미지', table:'표'}[b.type] || b.type;
+  const controls = VIEW_MODE ? '' : `<div class="lesson-block-controls">
+    <button data-block-move="up" data-block-id="${esc(b.id)}" ${index===0?'disabled':''} title="위로">▲</button>
+    <button data-block-move="down" data-block-id="${esc(b.id)}" ${index===total-1?'disabled':''} title="아래로">▼</button>
+    <button data-block-remove="1" data-block-id="${esc(b.id)}" title="삭제">✕</button>
+  </div>`;
+  let body = '';
+  if(b.type==='text') body = buildCommentEditor('lesson::'+b.id, '자유롭게 내용을 입력하세요');
+  else if(b.type==='image') body = buildLessonImageBlock(b);
+  else if(b.type==='table') body = buildLessonTableBlock(b);
+  return `<div class="card lesson-block" data-block-id="${esc(b.id)}">
+    <div class="lesson-block-head"><span class="lesson-block-tag">${esc(typeLabel)}</span>${controls}</div>
+    ${body}
+  </div>`;
+}
+function renderLessonLearnedTab(){
+  const blocks = STATE.lessonBlocks;
+  let html = `<div class="card">
+    ${sectionHead('lesson-title','Lesson Learn')}
+    <div class="stat-line">이번 리뷰에서 얻은 인사이트나 러닝을 텍스트/이미지/표로 자유롭게 정리하세요.</div>
+  </div>`;
+  html += blocks.map((b,i)=>buildLessonBlock(b,i,blocks.length)).join('');
+  if(blocks.length===0) html += '<div class="card"><div class="empty-state">아직 블록이 없어요. 아래에서 추가해보세요.</div></div>';
+  if(!VIEW_MODE){
+    html += `<div class="lesson-add-bar">
+      <button class="btn" data-add-block="text">+ 텍스트</button>
+      <button class="btn" data-add-block="image">+ 이미지</button>
+      <button class="btn" data-add-block="table">+ 표</button>
+    </div>`;
+  }
+  document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
+}
+document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
+  const addBtn = e.target.closest('[data-add-block]'); if(!addBtn) return;
+  const type = addBtn.dataset.addBlock;
+  const block = { id:newLessonBlockId(), type };
+  if(type==='table') block.rows = [['',''],['','']];
+  if(type==='image') block.caption = '';
+  STATE.lessonBlocks.push(block);
+  renderLessonLearnedTab();
+});
+document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
+  const rm = e.target.closest('[data-block-remove]'); if(!rm) return;
+  STATE.lessonBlocks = STATE.lessonBlocks.filter(b=>b.id!==rm.dataset.blockId);
+  renderLessonLearnedTab();
+});
+document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
+  const mv = e.target.closest('[data-block-move]'); if(!mv) return;
+  const idx = STATE.lessonBlocks.findIndex(b=>b.id===mv.dataset.blockId);
+  if(idx<0) return;
+  const dir = mv.dataset.blockMove==='up' ? -1 : 1;
+  const swapIdx = idx+dir;
+  if(swapIdx<0 || swapIdx>=STATE.lessonBlocks.length) return;
+  const arr = STATE.lessonBlocks;
+  [arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]];
+  renderLessonLearnedTab();
+});
+document.addEventListener('input', e=>{
+  if(VIEW_MODE) return;
+  const cell = e.target.closest('[data-lesson-cell]'); if(!cell) return;
+  const b = findLessonBlock(cell.dataset.lessonCell); if(!b) return;
+  const r = Number(cell.dataset.r), c = Number(cell.dataset.c);
+  if(b.rows[r]) b.rows[r][c] = cell.textContent;
+});
+document.addEventListener('input', e=>{
+  if(VIEW_MODE) return;
+  const cap = e.target.closest('[data-lesson-caption]'); if(!cap) return;
+  const b = findLessonBlock(cap.dataset.lessonCaption); if(!b) return;
+  b.caption = cap.value;
+});
+document.addEventListener('click', e=>{
+  if(VIEW_MODE) return;
+  const op = e.target.closest('[data-table-op]'); if(!op) return;
+  const b = findLessonBlock(op.dataset.blockId); if(!b || !b.rows) return;
+  const cols = b.rows[0] ? b.rows[0].length : 2;
+  if(op.dataset.tableOp==='addRow') b.rows.push(new Array(cols).fill(''));
+  else if(op.dataset.tableOp==='addCol') b.rows.forEach(row=>row.push(''));
+  else if(op.dataset.tableOp==='delRow'){ if(b.rows.length>1) b.rows.pop(); }
+  else if(op.dataset.tableOp==='delCol'){ if(cols>1) b.rows.forEach(row=>row.pop()); }
+  renderLessonLearnedTab();
+});
+
 function updateDateRangeLabel(){
   const el = document.getElementById('dateRangeLabel');
   if(el){
@@ -1177,6 +1306,7 @@ function updateDateRangeLabel(){
 
 function renderCurrentTab(){
   updateDateRangeLabel();
+  if(currentTab===LESSON_TAB_ID){ renderLessonLearnedTab(); return; }
   if(RAWROWS.length===0){
     document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active"><div class="empty-state">데이터가 없어요. 설정에서 Sync를 눌러주세요.</div></div>`;
     return;
@@ -1485,10 +1615,11 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
     let firstSection = true;
 
     const originalTab = currentTab;
-    const tabs = ['summary', ...countriesBySpend()];
+    const tabs = ['summary', ...countriesBySpend(), LESSON_TAB_ID];
+    const tabLabel = t => t===LESSON_TAB_ID ? 'Lesson Learn' : t;
 
     for(const tab of tabs){
-      btn.innerHTML = `<span class="spin">📄</span> ${esc(tab)} 생성 중...`;
+      btn.innerHTML = `<span class="spin">📄</span> ${esc(tabLabel(tab))} 생성 중...`;
       currentTab = tab;
       rebuildTabBar();
       renderCurrentTab();
@@ -1498,7 +1629,7 @@ document.getElementById('pdfBtn').addEventListener('click', async ()=>{
       firstSection = false;
       pdf.setFontSize(14);
       pdf.setTextColor(15,30,61);
-      pdf.text(tab, margin, y+6);
+      pdf.text(tabLabel(tab), margin, y+6);
       y += 12;
 
       const panel = document.querySelector('.tab-panel.active');
