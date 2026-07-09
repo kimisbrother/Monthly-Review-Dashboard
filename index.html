@@ -595,7 +595,8 @@ function deltaBadge(key, current, base){
   const cls = isGood===null ? 'delta-flat' : (isGood ? 'delta-good' : 'delta-bad');
   const arrow = dir==='up' ? '▲' : dir==='down' ? '▼' : '–';
   const valueStr = isPctPoint ? `${Math.abs(diff*100).toFixed(2)}%p` : `${Math.abs(Math.round(diff*100))}%`;
-  return `<span class="delta-pill ${cls}"><span class="delta-tri">${arrow}</span>${valueStr}</span>`;
+  const titleAttr = isPctPoint ? ' title="%p = 퍼센트포인트 (두 비율 값의 차이, 상대 증감률이 아님)"' : '';
+  return `<span class="delta-pill ${cls}"${titleAttr}><span class="delta-tri">${arrow}</span>${valueStr}</span>`;
 }
 function buildDeltaRow(actual, base){
   return ['spent','impression','click','landingView','cpm','cpc','ctr','view','vtr','cpv'].map(k=>deltaBadge(k, actual[k], base[k]));
@@ -1229,10 +1230,10 @@ function renderLessonLearnedTab(){
   const blocks = STATE.lessonBlocks;
   let html = `<div class="card">
     ${sectionHead('lesson-title','Lesson Learn')}
-    <div class="stat-line">이번 리뷰에서 얻은 인사이트나 러닝을 텍스트/이미지/표로 자유롭게 정리하세요.</div>
+    ${VIEW_MODE ? '' : '<div class="stat-line">이번 리뷰에서 얻은 인사이트나 러닝을 텍스트/이미지/표로 자유롭게 정리하세요.</div>'}
   </div>`;
   html += blocks.map((b,i)=>buildLessonBlock(b,i,blocks.length)).join('');
-  if(blocks.length===0) html += '<div class="card"><div class="empty-state">아직 블록이 없어요. 아래에서 추가해보세요.</div></div>';
+  if(blocks.length===0) html += `<div class="card"><div class="empty-state">${VIEW_MODE ? '아직 작성된 내용이 없어요.' : '아직 블록이 없어요. 아래에서 추가해보세요.'}</div></div>`;
   if(!VIEW_MODE){
     html += `<div class="lesson-add-bar">
       <button class="btn" data-add-block="text">+ 텍스트</button>
