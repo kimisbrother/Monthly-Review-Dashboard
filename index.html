@@ -140,8 +140,8 @@
   table{width:100%; border-collapse:collapse; font-size:12.5px; min-width:640px;}
   thead th{background:linear-gradient(180deg,var(--ap-green-700),var(--ap-green-900)); color:#FBF7EC; font-weight:700; text-align:center; padding:13px 16px; white-space:nowrap; letter-spacing:0.03em; font-size:11px; text-transform:uppercase;}
   thead th:first-child{text-align:left;}
-  tbody tr:nth-child(even) td:not(.hl){background:var(--surface-2);}
-  tbody tr:nth-child(even):hover td:not(.hl){background:#F2F0E6;}
+  tbody tr.row-tint td:not(.hl){background:var(--surface-2);}
+  tbody tr.row-tint:hover td:not(.hl){background:#F2F0E6;}
   tbody td{padding:11px 16px; text-align:right; border-bottom:1px solid #EEF0F5; font-family:var(--font-mono); white-space:nowrap; cursor:pointer; transition:background .1s ease;}
   tbody td:first-child{text-align:left; font-family:var(--font-sans); cursor:default;}
   tbody tr:hover td{background:#F5F7FB;}
@@ -525,7 +525,7 @@ function buildCampaignTable(tableId, rows, campCol){
   let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
   keys.forEach((k,ri)=>{
     const a = aggregate(groups.get(k));
-    html += `<tr><td>${esc(k)}</td>${koCells(a).map((c,ci)=>`<td data-table="${tableId}" data-cell="${ri}-${ci}" class="${hl.has(ri+'-'+ci)?'hl':''}">${c}</td>`).join('')}</tr>`;
+    html += `<tr class="${ri%2===1?'row-tint':''}"><td>${esc(k)}</td>${koCells(a).map((c,ci)=>`<td data-table="${tableId}" data-cell="${ri}-${ci}" class="${hl.has(ri+'-'+ci)?'hl':''}">${c}</td>`).join('')}</tr>`;
   });
   const tot = aggregate(keys.flatMap(k=>groups.get(k)));
   html += `<tr class="total-row"><td>TOTAL</td>${koCells(tot).map(c=>`<td>${c}</td>`).join('')}</tr></tbody></table>`;
@@ -543,6 +543,7 @@ function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
   let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
   const hl = new Set(STATE.highlights[tableId]||[]);
   let ri = 0;
+  let dataRowIndex = 0; // SUBTOTAL/TOTAL 줄은 세지 않는, 실제 데이터 줄만 기준으로 한 지브라 줄무늬용 카운터
   let allValidRows = [];
   countries.forEach(country=>{
     const crows = countryGroups.get(country);
@@ -552,7 +553,8 @@ function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
     allValidRows = allValidRows.concat(validRows);
     campKeys.forEach(ck=>{
       const a = aggregate(campGroups.get(ck));
-      html += `<tr><td>${esc(ck)}</td>${koCells(a).map((c,ci)=>{ const cell=ri+'-'+ci; ri++; return `<td data-table="${tableId}" data-cell="${cell}" class="${hl.has(cell)?'hl':''}">${c}</td>`; }).join('')}</tr>`;
+      const rowTint = dataRowIndex%2===1 ? 'row-tint' : ''; dataRowIndex++;
+      html += `<tr class="${rowTint}"><td>${esc(ck)}</td>${koCells(a).map((c,ci)=>{ const cell=ri+'-'+ci; ri++; return `<td data-table="${tableId}" data-cell="${cell}" class="${hl.has(cell)?'hl':''}">${c}</td>`; }).join('')}</tr>`;
     });
     const sub = aggregate(validRows);
     html += `<tr class="subtotal-row"><td>${esc(country)} SUBTOTAL</td>${koCells(sub).map(c=>`<td>${c}</td>`).join('')}</tr>`;
