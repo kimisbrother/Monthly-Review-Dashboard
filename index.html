@@ -796,19 +796,31 @@ document.addEventListener('paste', e=>{
   const items = e.clipboardData && e.clipboardData.items; if(!items || !hovered) return;
   for(const item of items){ if(item.type.startsWith('image/')){ const file=item.getAsFile(); if(file){ setSlotImage(hovered.dataset.slot, file); e.preventDefault(); } } }
 });
+// 번호가 여러 개면 연속 구간은 "9~12", 떨어져 있으면 "9, 12"로 표시
+function formatNumList(nums){
+  const uniq = Array.from(new Set(nums)).sort((a,b)=>a-b);
+  if(uniq.length===0) return null;
+  if(uniq.length===1) return String(uniq[0]);
+  const min=uniq[0], max=uniq[uniq.length-1];
+  return (max-min+1===uniq.length) ? `${min}~${max}` : uniq.join(', ');
+}
 function buildInfluencerGrid(rows, opts){
   // opts: { groupCol, labelCol, slotPrefix, numberFrom:{col, keyword} }
+  // groupCol은 인플루언서 "이름" 기준으로 넘겨받아서, 같은 사람이 다른 캠페인/광고그룹에 있어도 카드 하나로 합쳐짐
   const groupCol = opts.groupCol;
   if(!groupCol) return '<div class="empty-state">그룹 기준 컬럼 매핑이 필요해요.</div>';
   const groups = groupBy(rows, groupCol);
   let keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)');
   if(keys.length===0) return '<div class="empty-state">해당 소재유형 데이터가 없어요.</div>';
-  const numberOf = key => (opts.numberFrom && opts.numberFrom.col)
-    ? extractNum(groups.get(key)[0][opts.numberFrom.col], opts.numberFrom.keyword) : null;
+  const numbersOf = key => {
+    if(!(opts.numberFrom && opts.numberFrom.col)) return [];
+    return groups.get(key).map(r=>extractNum(r[opts.numberFrom.col], opts.numberFrom.keyword)).filter(n=>n!==null);
+  };
+  const sortKeyOf = key => { const nums=numbersOf(key); return nums.length ? Math.min(...nums) : null; };
   if(opts.numberFrom && opts.numberFrom.col){
     // 작은 번호가 앞, 번호가 없는 카드는 뒤로 — 오름차순 자동 정렬
     keys = keys.slice().sort((k1,k2)=>{
-      const n1 = numberOf(k1), n2 = numberOf(k2);
+      const n1 = sortKeyOf(k1), n2 = sortKeyOf(k2);
       if(n1===null && n2===null) return 0;
       if(n1===null) return 1;
       if(n2===null) return -1;
@@ -823,8 +835,8 @@ function buildInfluencerGrid(rows, opts){
     const slotKey = opts.slotPrefix + '::' + key;
     // 사진은 카드별이 아니라 인플루언서 "이름" 기준으로 저장해서, 같은 사람이면 국가/섹션이 달라도 같은 사진이 자동으로 뜨게 함
     const imgKey = 'name::' + String(rawLabel).trim().toLowerCase();
-    const n = numberOf(key);
-    const displayLabel = n!==null ? `${rawLabel} (${n})` : rawLabel;
+    const numLabel = formatNumList(numbersOf(key));
+    const displayLabel = numLabel!==null ? `${rawLabel} (${numLabel})` : rawLabel;
     const nameHtml = `<div class="readonly-name">${esc(displayLabel)}</div>`;
     const cardHl = STATE.cardHighlights[slotKey] ? 'card-hl' : '';
     const metricHl = m => STATE.highlights[slotKey] && STATE.highlights[slotKey].includes(m) ? 'hl' : '';
@@ -1172,12 +1184,12 @@ function renderCountryTab(country){
     const partnershipRows = rows.filter(r => String(r[ctCol])==='Partnership Ads');
     if(partnershipRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-partnership','Partnership Ads')}
-        ${buildInfluencerGrid(partnershipRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-partnership', numberFrom:{col:adGroupCol, keyword:'partnership ads'}})}</div>`;
+        ${buildInfluencerGrid(partnershipRows, {groupCol: infCol||adCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-partnership', numberFrom:{col:adGroupCol, keyword:'partnership ads'}})}</div>`;
     }
     const sparkRows = rows.filter(r => String(r[ctCol])==='Spark Ads');
     if(sparkRows.length){
       html += `<div class="card">${sectionHead('c-'+cKey+'-inf-spark','TikTok Spark Ads')}
-        ${buildInfluencerGrid(sparkRows, {groupCol: adCol||infCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-spark', numberFrom:{col:campaignCol, keyword:'spark ads'}})}</div>`;
+        ${buildInfluencerGrid(sparkRows, {groupCol: infCol||adCol, labelCol: infCol||adCol, slotPrefix:'c-'+cKey+'-spark', numberFrom:{col:campaignCol, keyword:'spark ads'}})}</div>`;
     }
   }
 
