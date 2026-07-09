@@ -538,7 +538,8 @@ function buildCampaignTable(tableId, rows, campCol){
 function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
   if(!countryCol || !campCol) return '<div class="empty-state">Country/Campaign 컬럼 매핑이 필요해요.</div>';
   const countryGroups = groupBy(rows, countryCol);
-  const countries = Array.from(countryGroups.keys()).filter(k=>k!=='(빈값)').sort();
+  const countries = Array.from(countryGroups.keys()).filter(k=>k!=='(빈값)')
+    .sort((a,b)=> aggregate(countryGroups.get(b)).spent - aggregate(countryGroups.get(a)).spent); // 지정 기간 기준 광고비 많은 나라부터
   if(countries.length===0) return '<div class="empty-state">데이터가 없어요.</div>';
   let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
   const hl = new Set(STATE.highlights[tableId]||[]);
