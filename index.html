@@ -396,7 +396,9 @@ function fmtWon(n){ return '₩'+fmtInt(n); }
 function fmtPct(n,d=2){ return isFinite(n)?(n*100).toFixed(d)+'%':'-'; }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function toDateInput(d){ if(!(d instanceof Date)||isNaN(d)) return ''; return d.toISOString().slice(0,10); }
-function uniqueVals(rows,col){ const s=new Set(); rows.forEach(r=>{ const v=r[col]; if(v!==undefined&&v!==null&&v!=='') s.add(String(v)); }); return Array.from(s).sort(); }
+// 문자열 정렬 대신, 끝에 붙은 숫자를 숫자값으로 비교 — "Ads9"가 "Ads17"보다 뒤로 안 밀리게
+function naturalSort(arr){ return arr.slice().sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'})); }
+function uniqueVals(rows,col){ const s=new Set(); rows.forEach(r=>{ const v=r[col]; if(v!==undefined&&v!==null&&v!=='') s.add(String(v)); }); return naturalSort(Array.from(s)); }
 
 function inRange(row, range){
   if(!range || (!range.start && !range.end)) return true;
@@ -432,7 +434,7 @@ function eligibleForExclusion(col, range){
   const groups = groupBy(rangeRows, col);
   const eligible = [];
   groups.forEach((rows, key)=>{ if(key!=='(빈값)' && daysCount(rows) >= 7) eligible.push(key); });
-  return eligible.sort();
+  return naturalSort(eligible);
 }
 function countriesBySpend(){
   const countryCol = CONFIG.fieldMap.country;
@@ -534,7 +536,7 @@ function buildSummaryDisplayKeyFn(rows, campCol, ctCol, adGroupCol, countryCol, 
 function buildCampaignTable(tableId, rows, campCol){
   if(!campCol) return '<div class="empty-state">Campaign 컬럼 매핑이 필요해요.</div>';
   const groups = groupBy(rows, campCol);
-  const keys = Array.from(groups.keys()).filter(k=>k!=='(빈값)').sort();
+  const keys = naturalSort(Array.from(groups.keys()).filter(k=>k!=='(빈값)'));
   if(keys.length===0) return '<div class="empty-state">데이터가 없어요.</div>';
   const hl = new Set(STATE.highlights[tableId]||[]);
   let html = `<table><thead><tr><th>캠페인</th>${KO_HEADERS.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
@@ -564,7 +566,7 @@ function buildCountryGroupedCampaignTable(tableId, rows, countryCol, campCol){
   countries.forEach(country=>{
     const crows = countryGroups.get(country);
     const campGroups = groupBy(crows, campCol);
-    const campKeys = Array.from(campGroups.keys()).filter(k=>k!=='(빈값)').sort();
+    const campKeys = naturalSort(Array.from(campGroups.keys()).filter(k=>k!=='(빈값)'));
     const validRows = campKeys.flatMap(k=>campGroups.get(k));
     allValidRows = allValidRows.concat(validRows);
     campKeys.forEach(ck=>{
