@@ -187,10 +187,6 @@
   .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
   .chart-wrap{height:420px; position:relative;}
 
-  .campaign-legend{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--text-dim); margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);}
-  .campaign-legend span{display:inline-flex; align-items:center; gap:5px;}
-  .campaign-legend i{display:inline-block; width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
-
   .modal-overlay{display:none; position:fixed; inset:0; background:rgba(20,22,40,0.45); z-index:100; align-items:center; justify-content:center; padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal{background:#fff; border-radius:14px; width:100%; max-width:640px; max-height:88vh; overflow-y:auto;}
@@ -879,99 +875,56 @@ function classifyCampaignType(ct, objective, name){
   if(hay.includes('conversion')) return 'conversion';
   return 'other';
 }
-function computeCampaignEvents(rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol){
+// 캠페인/클러스터별 실행 구간(시작~종료)을 타입 태그와 함께 계산 — 누적 막대 툴팁에서 사용
+function computeCampaignRanges(rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol){
   if(!campCol) return [];
-  const allDates = rows.map(getDate).filter(Boolean).map(toDateInput);
-  if(allDates.length===0) return [];
-  const globalLast = allDates.slice().sort()[allDates.length-1];
   const multiCountry = countryCol ? (new Set(rows.map(r=>String(r[countryCol])))).size > 1 : false;
   const campaigns = groupBy(rows, campCol);
-  const sparkStart=new Map(), sparkEnd=new Map(), partStart=new Map(), partEnd=new Map();
-  const regular=[];
+  const sparkAgg = new Map(), partAgg = new Map();
+  const out = [];
 
   campaigns.forEach((crows, campName)=>{
     if(campName==='(빈값)') return;
     const dates = crows.map(getDate).filter(Boolean).map(toDateInput).sort();
     if(dates.length===0) return;
-    const start=dates[0], end=dates[dates.length-1];
+    const start = dates[0], end = dates[dates.length-1];
     const ct = ctCol?String(crows[0][ctCol]):'';
     const country = countryCol?String(crows[0][countryCol]):'';
     const objective = objectiveCol?String(crows[0][objectiveCol]):'';
     const type = classifyCampaignType(ct, objective, campName);
 
     if(type==='spark' || type==='partnership'){
-      const startMap = type==='spark'?sparkStart:partStart, endMap = type==='spark'?sparkEnd:partEnd;
+      const agg = type==='spark' ? sparkAgg : partAgg;
       const numSrc = type==='spark' ? campName : (adGroupCol?crows[0][adGroupCol]:campName);
       const num = extractNum(numSrc, type==='spark'?'spark ads':'partnership ads');
-      const sKey = country+'|'+start;
-      if(!startMap.has(sKey)) startMap.set(sKey, {country, date:start, nums:[]});
-      if(num!==null) startMap.get(sKey).nums.push(num);
-      if(end !== globalLast){
-        const eKey = country+'|'+end;
-        if(!endMap.has(eKey)) endMap.set(eKey, {country, date:end, nums:[]});
-        if(num!==null) endMap.get(eKey).nums.push(num);
-      }
+      if(!agg.has(country)) agg.set(country, {nums:[], start, end});
+      const g = agg.get(country);
+      if(num!==null) g.nums.push(num);
+      if(start<g.start) g.start=start;
+      if(end>g.end) g.end=end;
     } else {
-      const label = (multiCountry && country ? country+' ' : '')+campName;
-      regular.push({date:start, kind:'시작', label, type});
-      if(end !== globalLast) regular.push({date:end, kind:'종료', label, type});
+      out.push({ label:(multiCountry && country ? country+' ' : '')+campName, type, start, end });
     }
   });
 
-  function clusterLabel(prefix, c){
-    const base = rangeLabel(prefix, c.nums);
-    return (multiCountry && c.country) ? `${c.country} ${base}` : base;
-  }
-
-  const events = regular.slice();
-  sparkStart.forEach(c=> events.push({date:c.date, kind:'시작', label:clusterLabel('Spark Ads', c), type:'spark'}));
-  sparkEnd.forEach(c=> events.push({date:c.date, kind:'종료', label:clusterLabel('Spark Ads', c), type:'spark'}));
-  partStart.forEach(c=> events.push({date:c.date, kind:'시작', label:clusterLabel('Partnership Ads', c), type:'partnership'}));
-  partEnd.forEach(c=> events.push({date:c.date, kind:'종료', label:clusterLabel('Partnership Ads', c), type:'partnership'}));
-  return events;
+  sparkAgg.forEach((g,country)=> out.push({ label:(multiCountry&&country?country+' ':'')+rangeLabel('Spark Ads', g.nums), type:'spark', start:g.start, end:g.end }));
+  partAgg.forEach((g,country)=> out.push({ label:(multiCountry&&country?country+' ':'')+rangeLabel('Partnership Ads', g.nums), type:'partnership', start:g.start, end:g.end }));
+  return out;
 }
-function buildEventsByIndex(events, days){
+// 날짜(인덱스)별로 그날 시작/종료/진행중이었던 캠페인 목록을 만듦
+function buildDayStatusMap(ranges, days){
   const map = new Map();
-  if(!days.length) return map;
-  const dayTime = days.map(d=>new Date(d).getTime());
-  events.forEach(e=>{
-    let idx = days.indexOf(e.date);
-    if(idx<0){
-      const target = new Date(e.date).getTime();
-      let best=0, bestDiff=Infinity;
-      dayTime.forEach((t,i)=>{ const diff=Math.abs(t-target); if(diff<bestDiff){ bestDiff=diff; best=i; } });
-      idx = best;
-    }
-    if(!map.has(idx)) map.set(idx, []);
-    map.get(idx).push(e);
+  days.forEach((day,idx)=>{
+    const entries = [];
+    ranges.forEach(r=>{
+      if(day < r.start || day > r.end) return;
+      const status = (day===r.start && day===r.end) ? '시작·종료' : day===r.start ? '시작' : day===r.end ? '종료' : '진행중';
+      entries.push({label:r.label, type:r.type, status});
+    });
+    if(entries.length) map.set(idx, entries);
   });
   return map;
 }
-const campaignMarkerPlugin = {
-  id:'campaignMarkers',
-  afterDraw(chart){
-    try{
-      const opts = chart.options.plugins && chart.options.plugins.campaignMarkers;
-      if(!opts || !opts.eventsByIndex || !opts.eventsByIndex.size) return;
-      const {ctx, chartArea} = chart;
-      const meta = chart.getDatasetMeta(0);
-      if(!meta || !meta.data) return;
-      ctx.save();
-      opts.eventsByIndex.forEach((evts, index)=>{
-        const p = meta.data[index]; if(!p) return;
-        const x = p.x; if(!isFinite(x) || x<chartArea.left || x>chartArea.right) return;
-        const types = Array.from(new Set(evts.map(e=>e.type)));
-        types.forEach((type,i)=>{
-          const tMeta = CAMPAIGN_TYPE_META[type] || CAMPAIGN_TYPE_META.other;
-          const offset = (i - (types.length-1)/2) * 2.5;
-          ctx.beginPath(); ctx.setLineDash([3,3]); ctx.strokeStyle=tMeta.color; ctx.lineWidth=1.4;
-          ctx.moveTo(x+offset, chartArea.top); ctx.lineTo(x+offset, chartArea.bottom); ctx.stroke(); ctx.setLineDash([]);
-        });
-      });
-      ctx.restore();
-    }catch(e){ console.error('campaignMarkerPlugin error', e); }
-  }
-};
 function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol, eventRows){
   try{
     const canvas = document.getElementById(canvasId);
@@ -980,47 +933,72 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
     const dayMap = groupBy(rows, r=>{ const d=getDate(r); return d?toDateInput(d):'?'; });
     const days = Array.from(dayMap.keys()).filter(k=>k!=='?').sort();
     if(days.length===0){ showChartFallback(canvas,'표시할 일자별 데이터가 없어요.'); return; }
-    const spend = days.map(d=>aggregate(dayMap.get(d)).spent);
     const ctr = days.map(d=>aggregate(dayMap.get(d)).ctr*100);
     const vtr = days.map(d=>aggregate(dayMap.get(d)).vtr*100);
-    const events = computeCampaignEvents(eventRows||rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol);
-    const eventsByIndex = buildEventsByIndex(events, days);
+
+    // 일자 × 타입별 지출 — 누적 막대 데이터
+    const typeSpend = {};
+    Object.keys(CAMPAIGN_TYPE_META).forEach(t=>{ typeSpend[t] = days.map(()=>0); });
+    days.forEach((day,i)=>{
+      (dayMap.get(day)||[]).forEach(r=>{
+        const ct = ctCol?String(r[ctCol]):'';
+        const objective = objectiveCol?String(r[objectiveCol]):'';
+        const name = campCol?String(r[campCol]):'';
+        typeSpend[classifyCampaignType(ct, objective, name)][i] += num(r,'spent');
+      });
+    });
+    const presentTypes = Object.keys(CAMPAIGN_TYPE_META).filter(t=>typeSpend[t].some(v=>v>0));
+    const ranges = computeCampaignRanges(eventRows||rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol);
+    const dayStatusMap = buildDayStatusMap(ranges, days);
+
     if(charts[chartKey]) charts[chartKey].destroy();
+    const barDatasets = presentTypes.map(t=>({
+      type:'bar', label:CAMPAIGN_TYPE_META[t].label, data:typeSpend[t],
+      backgroundColor:CAMPAIGN_TYPE_META[t].color, stack:'spend', yAxisID:'y', order:2,
+      borderRadius:2, borderSkipped:false
+    }));
     charts[chartKey] = new Chart(canvas, {
       data:{ labels:days, datasets:[
-        { type:'bar', label:'Spend (₩)', data:spend, backgroundColor:'rgba(11,42,33,0.55)', borderRadius:3, yAxisID:'y', order:2 },
-        { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 },
-        { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, tension:0.25, order:1 }
+        ...barDatasets,
+        { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 },
+        { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 }
       ]},
-      plugins:[campaignMarkerPlugin],
       options:{ responsive:true, maintainAspectRatio:false, animation:false,
         interaction:{ mode:'index', intersect:false },
         plugins:{
-          legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}},
-          campaignMarkers:{eventsByIndex},
+          legend:{display:true, position:'top', labels:{boxWidth:8, usePointStyle:true, pointStyle:'circle', font:{size:11}}},
           tooltip:{
             callbacks:{
+              label(ctx){
+                return ctx.dataset.type==='bar' ? `${ctx.dataset.label}: ${fmtWon(ctx.raw)}` : `${ctx.dataset.label}: ${ctx.formattedValue}%`;
+              },
               footer(items){
                 if(!items.length) return '';
-                const evts = eventsByIndex.get(items[0].dataIndex);
-                if(!evts || !evts.length) return '';
+                const entries = dayStatusMap.get(items[0].dataIndex);
+                if(!entries || !entries.length) return '';
                 const groups = new Map();
-                evts.forEach(e=>{
-                  const gKey = e.kind+'|'+e.type;
+                entries.forEach(e=>{
+                  const gKey = e.status+'|'+e.type;
                   if(!groups.has(gKey)) groups.set(gKey, []);
                   groups.get(gKey).push(e.label);
                 });
-                return Array.from(groups.entries()).map(([gKey,labels])=>{
-                  const [kind,type] = gKey.split('|');
-                  const tMeta = CAMPAIGN_TYPE_META[type] || CAMPAIGN_TYPE_META.other;
-                  return `${kind} · ${tMeta.label}: ${labels.join(', ')}`;
-                });
+                const order = {'시작':0, '시작·종료':0, '종료':1, '진행중':2};
+                return Array.from(groups.entries())
+                  .sort((a,b)=>(order[a[0].split('|')[0]]??9)-(order[b[0].split('|')[0]]??9))
+                  .map(([gKey,labels])=>{
+                    const [status,type] = gKey.split('|');
+                    const tMeta = CAMPAIGN_TYPE_META[type] || CAMPAIGN_TYPE_META.other;
+                    const shown = labels.length>10 ? labels.slice(0,10).join(', ')+` 외 ${labels.length-10}개` : labels.join(', ');
+                    return `${status} · ${tMeta.label}: ${shown}`;
+                  });
               }
             }
           }
         },
-        scales:{ y:{position:'left',ticks:{callback:v=>fmtWon(v)},title:{display:true,text:'Spend (₩)',font:{size:10}}},
-                 y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v+'%'},title:{display:true,text:'CTR / VTR',font:{size:10}}} }
+        scales:{
+          y:{ position:'left', stacked:true, grid:{color:'rgba(11,42,33,0.06)'}, ticks:{callback:v=>fmtWon(v)}, title:{display:true,text:'Spend (₩)',font:{size:10}} },
+          y1:{ position:'right', grid:{drawOnChartArea:false}, ticks:{callback:v=>v+'%'}, title:{display:true,text:'CTR / VTR',font:{size:10}} }
+        }
       }
     });
   }catch(e){
@@ -1028,10 +1006,6 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
     const dbg = document.getElementById('chartDebugInfo');
     if(dbg) dbg.innerHTML += `<br><b style="color:#8f2323;">차트 렌더링 중 오류: ${esc(e.message)}</b>`;
   }
-}
-function buildCampaignLegend(){
-  return `<div class="campaign-legend">${Object.values(CAMPAIGN_TYPE_META).map(m=>
-    `<span><i style="background:${m.color}"></i>${esc(m.label)}</span>`).join('')}</div>`;
 }
 
 /* ===========================================================
@@ -1104,9 +1078,8 @@ function renderSummaryTab(){
 
   html += `<div class="card card-comment">${sectionHead('sum-timeline-comment','집행 기간에 따른 성과 추이')}${buildCommentEditor('sum-timeline-comment','초기/중반/후반 구간별 코멘트를 입력하세요')}</div>`;
 
-  html += `<div class="card">${sectionHead('sum-trend-chart','일자별 Spend · CTR · VTR 추이','점선 = 캠페인 시작/종료, 위에 마우스를 올리면 상세 표시')}
+  html += `<div class="card">${sectionHead('sum-trend-chart','일자별 Spend · CTR · VTR 추이','지출 막대 = 캠페인 타입별 비중, 위에 마우스를 올리면 그날 시작/종료/진행 캠페인 표시')}
     <div class="chart-wrap"><canvas id="summaryTrendChart"></canvas></div>
-    ${buildCampaignLegend()}
     <div id="chartDebugInfo" style="font-size:11px; color:var(--text-faint); margin-top:6px;"></div></div>`;
 
   document.getElementById('tabPanels').innerHTML = `<div class="tab-panel active">${html}</div>`;
