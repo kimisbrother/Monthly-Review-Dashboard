@@ -187,6 +187,22 @@
   .empty-state{text-align:center; padding:30px 20px; color:var(--text-faint); font-size:12.5px;}
   .chart-wrap{height:420px; position:relative;}
 
+  .chart-tooltip{position:absolute; opacity:0; pointer-events:none; transition:opacity .1s ease; z-index:20; transform:translate(-50%,-100%); margin-top:-12px; will-change:transform, opacity;}
+  .ctt{background:var(--ap-green-900); color:#fff; border-radius:12px; padding:13px 15px; font-size:12px; min-width:220px; box-shadow:0 14px 28px rgba(0,0,0,0.32); border:1px solid rgba(255,255,255,0.08);}
+  .ctt-date{font-family:var(--font-mono); font-size:10.5px; color:rgba(255,255,255,0.55); text-align:center; letter-spacing:0.03em; margin-bottom:9px;}
+  .ctt-summary{display:flex; justify-content:center; gap:20px; padding-bottom:10px;}
+  .ctt-summary-val{font-weight:800; font-size:13.5px; text-align:center; color:#fff;}
+  .ctt-summary-label{font-size:9.5px; color:rgba(255,255,255,0.5); text-align:center; margin-top:2px; letter-spacing:0.05em;}
+  .ctt-divider{height:1px; background:rgba(255,255,255,0.14); margin:0 0 9px;}
+  .ctt-type{margin-bottom:8px;}
+  .ctt-type:last-child{margin-bottom:0;}
+  .ctt-type-head{display:flex; align-items:center; gap:6px; font-weight:700; font-size:12px;}
+  .ctt-type-amt{margin-left:auto; font-family:var(--font-mono); font-weight:700;}
+  .ctt-swatch{width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
+  .ctt-sub{display:flex; gap:6px; padding-left:14px; font-size:11px; color:rgba(255,255,255,0.72); margin-top:3px;}
+  .ctt-sub-label{flex:0 0 44px; color:rgba(255,255,255,0.42);}
+  .ctt-sub-val{flex:1;}
+
   .modal-overlay{display:none; position:fixed; inset:0; background:rgba(20,22,40,0.45); z-index:100; align-items:center; justify-content:center; padding:20px;}
   .modal-overlay.show{display:flex;}
   .modal{background:#fff; border-radius:14px; width:100%; max-width:640px; max-height:88vh; overflow-y:auto;}
@@ -859,13 +875,14 @@ function chartsAvailable(){ return typeof Chart !== 'undefined'; }
 function showChartFallback(canvas,msg){ if(!canvas) return; canvas.parentElement.innerHTML = `<div class="empty-state">${esc(msg)}</div>`; }
 
 const CAMPAIGN_TYPE_META = {
-  spark:{label:'Spark Ads', color:'#0C8C7D'},
-  partnership:{label:'Partnership Ads', color:'#C2760C'},
-  traffic:{label:'Traffic', color:'#154A38'},
-  awareness:{label:'Awareness', color:'#3D6EA6'},
-  conversion:{label:'Conversion', color:'#C0392B'},
-  other:{label:'기타', color:'#93998A'}
+  spark:{label:'Spark Ads', color:'#1B9AAA'},
+  partnership:{label:'Partnership Ads', color:'#D9A441'},
+  traffic:{label:'Traffic', color:'#2F6F4E'},
+  awareness:{label:'Awareness', color:'#4C6FA0'},
+  conversion:{label:'Conversion', color:'#E1633D'},
+  other:{label:'기타', color:'#9AA0A6'}
 };
+const METRIC_LINE_COLOR = { ctr:'#D6478C', vtr:'#7A5CC7' }; // CTR/VTR은 캠페인 타입 색과 겹치지 않는 별도 팔레트
 function classifyCampaignType(ct, objective, name){
   if(ct==='Spark Ads') return 'spark';
   if(ct==='Partnership Ads') return 'partnership';
@@ -925,6 +942,41 @@ function buildDayStatusMap(ranges, days){
   });
   return map;
 }
+// 하루치 데이터를 툴팁용 HTML로 조립: 위쪽에 그날의 Spend/CTR/VTR 총계, 아래에 타입별 지출 + 시작/종료/진행중 캠페인
+function buildDayTooltipHtml(idx, days, typeSpend, ctrArr, vtrArr, dayStatusMap){
+  const totalSpend = Object.keys(CAMPAIGN_TYPE_META).reduce((s,t)=>s+typeSpend[t][idx], 0);
+  const byType = new Map();
+  (dayStatusMap.get(idx)||[]).forEach(e=>{
+    if(!byType.has(e.type)) byType.set(e.type, {시작:[], 종료:[], 진행중:[]});
+    const bucket = byType.get(e.type);
+    if(e.status==='시작'||e.status==='시작·종료') bucket.시작.push(e.label);
+    if(e.status==='종료'||e.status==='시작·종료') bucket.종료.push(e.label);
+    if(e.status==='진행중') bucket.진행중.push(e.label);
+  });
+  const typesToShow = Object.keys(CAMPAIGN_TYPE_META).filter(t=>typeSpend[t][idx]>0 || byType.has(t));
+  const typeRows = typesToShow.map(t=>{
+    const meta = CAMPAIGN_TYPE_META[t];
+    const bucket = byType.get(t) || {시작:[],종료:[],진행중:[]};
+    const subLines = ['시작','종료','진행중'].filter(k=>bucket[k].length).map(k=>{
+      const vals = bucket[k];
+      const shown = vals.length>8 ? vals.slice(0,8).join(', ')+` 외 ${vals.length-8}개` : vals.join(', ');
+      return `<div class="ctt-sub"><span class="ctt-sub-label">${k==='진행중'?'진행 중':k}</span><span class="ctt-sub-val">${esc(shown)}</span></div>`;
+    }).join('');
+    return `<div class="ctt-type">
+      <div class="ctt-type-head"><span class="ctt-swatch" style="background:${meta.color}"></span>${esc(meta.label)}<span class="ctt-type-amt">${fmtWon(typeSpend[t][idx])}</span></div>
+      ${subLines}
+    </div>`;
+  }).join('');
+  return `<div class="ctt">
+    <div class="ctt-date">${esc(days[idx])}</div>
+    <div class="ctt-summary">
+      <div><div class="ctt-summary-val">${fmtWon(totalSpend)}</div><div class="ctt-summary-label">SPEND</div></div>
+      <div><div class="ctt-summary-val" style="color:${METRIC_LINE_COLOR.ctr}">${ctrArr[idx].toFixed(2)}%</div><div class="ctt-summary-label">CTR</div></div>
+      <div><div class="ctt-summary-val" style="color:${METRIC_LINE_COLOR.vtr}">${vtrArr[idx].toFixed(2)}%</div><div class="ctt-summary-label">VTR</div></div>
+    </div>
+    ${typeRows ? `<div class="ctt-divider"></div>${typeRows}` : ''}
+  </div>`;
+}
 function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, countryCol, objectiveCol, eventRows){
   try{
     const canvas = document.getElementById(canvasId);
@@ -960,38 +1012,31 @@ function renderTrendChart(canvasId, chartKey, rows, campCol, ctCol, adGroupCol, 
     charts[chartKey] = new Chart(canvas, {
       data:{ labels:days, datasets:[
         ...barDatasets,
-        { type:'line', label:'CTR', data:ctr, borderColor:'#0C8C7D', backgroundColor:'#0C8C7D', yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 },
-        { type:'line', label:'VTR', data:vtr, borderColor:'#C2760C', backgroundColor:'#C2760C', yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 }
+        { type:'line', label:'CTR', data:ctr, borderColor:METRIC_LINE_COLOR.ctr, backgroundColor:METRIC_LINE_COLOR.ctr, yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 },
+        { type:'line', label:'VTR', data:vtr, borderColor:METRIC_LINE_COLOR.vtr, backgroundColor:METRIC_LINE_COLOR.vtr, yAxisID:'y1', pointRadius:0, borderWidth:2, tension:0.25, order:1 }
       ]},
       options:{ responsive:true, maintainAspectRatio:false, animation:false,
         interaction:{ mode:'index', intersect:false },
         plugins:{
           legend:{display:true, position:'top', labels:{boxWidth:8, usePointStyle:true, pointStyle:'circle', font:{size:11}}},
           tooltip:{
-            callbacks:{
-              label(ctx){
-                return ctx.dataset.type==='bar' ? `${ctx.dataset.label}: ${fmtWon(ctx.raw)}` : `${ctx.dataset.label}: ${ctx.formattedValue}%`;
-              },
-              footer(items){
-                if(!items.length) return '';
-                const entries = dayStatusMap.get(items[0].dataIndex);
-                if(!entries || !entries.length) return '';
-                const groups = new Map();
-                entries.forEach(e=>{
-                  const gKey = e.status+'|'+e.type;
-                  if(!groups.has(gKey)) groups.set(gKey, []);
-                  groups.get(gKey).push(e.label);
-                });
-                const order = {'시작':0, '시작·종료':0, '종료':1, '진행중':2};
-                return Array.from(groups.entries())
-                  .sort((a,b)=>(order[a[0].split('|')[0]]??9)-(order[b[0].split('|')[0]]??9))
-                  .map(([gKey,labels])=>{
-                    const [status,type] = gKey.split('|');
-                    const tMeta = CAMPAIGN_TYPE_META[type] || CAMPAIGN_TYPE_META.other;
-                    const shown = labels.length>10 ? labels.slice(0,10).join(', ')+` 외 ${labels.length-10}개` : labels.join(', ');
-                    return `${status} · ${tMeta.label}: ${shown}`;
-                  });
+            enabled:false,
+            external(context){
+              const {chart, tooltip} = context;
+              let el = chart.canvas.parentNode.querySelector('.chart-tooltip');
+              if(!el){
+                el = document.createElement('div');
+                el.className = 'chart-tooltip';
+                chart.canvas.parentNode.appendChild(el);
               }
+              if(tooltip.opacity===0){ el.style.opacity=0; return; }
+              const idx = tooltip.dataPoints && tooltip.dataPoints[0] ? tooltip.dataPoints[0].dataIndex : null;
+              if(idx===null){ el.style.opacity=0; return; }
+              el.innerHTML = buildDayTooltipHtml(idx, days, typeSpend, ctr, vtr, dayStatusMap);
+              const rect = chart.canvas.getBoundingClientRect();
+              el.style.opacity = 1;
+              el.style.left = Math.min(tooltip.caretX, rect.width-140) + 'px';
+              el.style.top = tooltip.caretY + 'px';
             }
           }
         },
