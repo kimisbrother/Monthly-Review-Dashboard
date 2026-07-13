@@ -1253,8 +1253,9 @@ function buildLessonBlock(b, index, total){
   if(b.type==='text') body = buildCommentEditor('lesson::'+b.id, '자유롭게 내용을 입력하세요');
   else if(b.type==='image') body = buildLessonImageBlock(b);
   else if(b.type==='table') body = buildLessonTableBlock(b);
+  const head = VIEW_MODE ? '' : `<div class="lesson-block-head"><span class="lesson-block-tag">${esc(typeLabel)}</span>${controls}</div>`;
   return `<div class="card lesson-block" data-block-id="${esc(b.id)}">
-    <div class="lesson-block-head"><span class="lesson-block-tag">${esc(typeLabel)}</span>${controls}</div>
+    ${head}
     ${body}
   </div>`;
 }
